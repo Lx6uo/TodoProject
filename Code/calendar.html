@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>待办清单工作台 | 日历视图</title>
+    <link rel="stylesheet" href="assets/css/style.css" />
+  </head>
+  <body class="calendar-page">
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">◯</span>
+          <div>
+            <p class="eyebrow">TODO list</p>
+            <h1 class="title">日历视图</h1>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button id="themeToggle" class="ghost-btn" type="button" aria-label="切换主题">
+            主题
+          </button>
+        </div>
+      </header>
+
+      <nav class="nav-bar" aria-label="页面导航">
+        <div class="nav-links">
+          <a class="nav-link" href="index.html">任务清单</a>
+          <a class="nav-link active" href="calendar.html">日历</a>
+          <a class="nav-link" href="analytics.html">数据分析</a>
+        </div>
+      </nav>
+
+      <main class="content">
+        <section class="toolbar">
+          <div class="toolbar-left">
+            <div class="field">
+              <label for="calendarListSelect">列表</label>
+              <select id="calendarListSelect"></select>
+            </div>
+          </div>
+          <div class="toolbar-right">
+            <button id="clearDateFilter" class="ghost-btn" type="button">
+              清除日期筛选
+            </button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="calendar-header">
+            <div class="month-nav">
+              <button id="prevMonthBtn" class="ghost-btn" type="button">上月</button>
+              <h3 id="calendarMonthLabel">-</h3>
+              <button id="nextMonthBtn" class="ghost-btn" type="button">下月</button>
+            </div>
+          </div>
+          <div id="calendarGrid" class="calendar-grid" role="grid"></div>
+        </section>
+
+        <section class="panel">
+          <div class="calendar-tasks">
+            <h3 id="calendarTaskTitle">所选日期的任务</h3>
+            <ul id="calendarTaskList" class="task-list"></ul>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="assets/js/calendar-page.js"></script>
+  </body>
+</html>

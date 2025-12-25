@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>待办清单工作台</title>
+    <link rel="stylesheet" href="assets/css/style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">◯</span>
+          <div>
+            <p class="eyebrow">TODO list</p>
+            <h1 class="title">待办清单小程序</h1>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button id="themeToggle" class="ghost-btn" type="button" aria-label="切换主题">
+            主题
+          </button>
+        </div>
+      </header>
+
+      <nav class="nav-bar" aria-label="页面导航">
+        <div class="nav-links">
+          <a class="nav-link active" href="index.html">任务清单</a>
+          <a class="nav-link" href="calendar.html">日历</a>
+          <a class="nav-link" href="analytics.html">数据分析</a>
+        </div>
+      </nav>
+
+      <div class="layout">
+        <aside class="sidebar">
+          <div class="sidebar-header">
+            <h2>列表</h2>
+            <button id="addListBtn" class="primary-btn" type="button">新建列表</button>
+          </div>
+          <ul id="listContainer" class="list-items" aria-label="任务列表"></ul>
+        </aside>
+
+        <main class="content">
+          <section class="toolbar">
+            <div class="toolbar-left">
+              <div class="current-list">
+                <span class="label">当前列表</span>
+                <span id="currentListName" class="value">-</span>
+              </div>
+              <button id="openTaskModalBtn" class="primary-btn" type="button">
+                新建任务
+              </button>
+            </div>
+            <div class="toolbar-right">
+              <div class="field">
+                <label for="statusFilter">状态</label>
+                <select id="statusFilter">
+                  <option value="all">全部</option>
+                  <option value="active">进行中</option>
+                  <option value="completed">已完成</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="sortSelect">排序</label>
+                <select id="sortSelect">
+                  <option value="manual">手动</option>
+                  <option value="priority">优先级</option>
+                  <option value="dueDate">截止日期</option>
+                </select>
+              </div>
+              <div class="field search-field">
+                <label for="searchInput">搜索</label>
+                <input id="searchInput" type="search" placeholder="搜索任务..." />
+              </div>
+              <button id="clearCompletedBtn" class="ghost-btn" type="button">
+                清理已完成
+              </button>
+            </div>
+          </section>
+
+          <section id="taskPanel" class="panel">
+            <div class="summary">
+              <div id="statsSummary" class="summary-cards" aria-live="polite"></div>
+              <p id="dragHint" class="hint"></p>
+            </div>
+
+            <ul id="taskList" class="task-list" aria-live="polite"></ul>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div
+      id="taskModal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="taskModalTitle"
+    >
+      <div class="modal-backdrop" data-action="close-modal"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="taskModalTitle">新建任务</h2>
+          <button class="ghost-btn" type="button" data-action="close-modal">
+            关闭
+          </button>
+        </div>
+        <form id="taskForm" class="task-form">
+          <div class="field">
+            <label for="taskTitle">标题</label>
+            <input id="taskTitle" type="text" placeholder="需要做什么？" required />
+          </div>
+          <div class="field">
+            <label for="taskNote">备注</label>
+            <input id="taskNote" type="text" placeholder="可选说明" />
+          </div>
+          <div class="field">
+            <label for="taskPriority">优先级</label>
+            <select id="taskPriority">
+              <option value="low">低</option>
+              <option value="medium" selected>中</option>
+              <option value="high">高</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="taskDueDate">截止日期</label>
+            <input id="taskDueDate" type="date" />
+          </div>
+          <div class="field">
+            <label for="taskListSelect">所属列表</label>
+            <select id="taskListSelect"></select>
+          </div>
+          <div class="form-actions">
+            <button id="taskSubmitBtn" class="primary-btn" type="submit">添加任务</button>
+            <button id="cancelEditBtn" class="ghost-btn" type="button">
+              取消
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script type="module" src="assets/js/app.js"></script>
+  </body>
+</html>

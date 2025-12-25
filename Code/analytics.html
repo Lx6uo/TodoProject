@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>待办清单工作台 | 数据分析</title>
+    <link rel="stylesheet" href="assets/css/style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">◯</span>
+          <div>
+            <p class="eyebrow">TODO list</p>
+            <h1 class="title">数据分析</h1>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button id="themeToggle" class="ghost-btn" type="button" aria-label="切换主题">
+            主题
+          </button>
+        </div>
+      </header>
+
+      <nav class="nav-bar" aria-label="页面导航">
+        <div class="nav-links">
+          <a class="nav-link" href="index.html">任务清单</a>
+          <a class="nav-link" href="calendar.html">日历</a>
+          <a class="nav-link active" href="analytics.html">数据分析</a>
+        </div>
+      </nav>
+
+      <main class="content analytics">
+        <section class="toolbar">
+          <div class="toolbar-left">
+            <div class="field">
+              <label for="analyticsListSelect">列表</label>
+              <select id="analyticsListSelect"></select>
+            </div>
+            <div class="field">
+              <label for="rangeSelect">时间范围</label>
+              <select id="rangeSelect">
+                <option value="7">近 7 天</option>
+                <option value="30">近 30 天</option>
+                <option value="custom">自定义</option>
+              </select>
+            </div>
+            <div id="customRangeFields" class="field-group hidden">
+              <div class="field">
+                <label for="startDate">开始</label>
+                <input id="startDate" type="date" />
+              </div>
+              <div class="field">
+                <label for="endDate">结束</label>
+                <input id="endDate" type="date" />
+              </div>
+            </div>
+          </div>
+          <div class="toolbar-right">
+            <div class="field">
+              <label for="metricSelect">趋势指标</label>
+              <select id="metricSelect">
+                <option value="both">新增 + 完成</option>
+                <option value="created">仅新增</option>
+                <option value="completed">仅完成</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section class="chart-grid">
+          <article class="chart-card">
+            <h2>完成概览</h2>
+            <div id="completionChart" class="chart"></div>
+          </article>
+          <article class="chart-card">
+            <h2>任务趋势</h2>
+            <div id="trendChart" class="chart"></div>
+          </article>
+          <article class="chart-card">
+            <h2>优先级分布</h2>
+            <div id="priorityChart" class="chart"></div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="node_modules/echarts/dist/echarts.min.js"></script>
+    <script type="module" src="assets/js/charts.js"></script>
+  </body>
+</html>
