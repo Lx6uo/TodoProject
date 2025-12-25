@@ -1,4 +1,9 @@
-import { getAllTasks, getLists, getTasksByList, updateTask } from "./storage.js";
+import {
+  getAllTasks,
+  getLists,
+  getTasksByList,
+  toggleTaskCompletion,
+} from "./storage.js";
 import { buildCalendarCells, getMonthLabel } from "./calendar.js";
 
 const state = {
@@ -261,11 +266,7 @@ const handleTaskCheckbox = async (event) => {
   const task = state.tasks.find((t) => t.id === item.dataset.id);
   if (!task) return;
   const completed = event.target.checked;
-  await updateTask({
-    ...task,
-    completed,
-    completedAt: completed ? Date.now() : 0,
-  });
+  await toggleTaskCompletion(task.id, completed);
   await refresh();
 };
 

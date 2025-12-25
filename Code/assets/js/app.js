@@ -5,11 +5,16 @@ import {
   deleteList,
   deleteTask,
   exportData,
+  getEventStacks,
   getLists,
+  getRecentEvents,
   getTasksByList,
   importData,
   updateList,
   updateTask,
+  toggleTaskCompletion,
+  undoLastEvent,
+  redoLastEvent,
 } from "./storage.js";
 
 const state = {
@@ -20,6 +25,8 @@ const state = {
   sortBy: localStorage.getItem("sortBy") || "manual",
   searchQuery: "",
   editingTaskId: null,
+  eventLog: [],
+  eventStacks: { undo: [], redo: [] },
 };
 
 const els = {
@@ -32,6 +39,8 @@ const els = {
   sortSelect: document.getElementById("sortSelect"),
   searchInput: document.getElementById("searchInput"),
   clearCompletedBtn: document.getElementById("clearCompletedBtn"),
+  undoBtn: document.getElementById("undoBtn"),
+  redoBtn: document.getElementById("redoBtn"),
   exportDataBtn: document.getElementById("exportDataBtn"),
   importDataBtn: document.getElementById("importDataBtn"),
   importFileInput: document.getElementById("importFileInput"),
@@ -48,6 +57,7 @@ const els = {
   taskList: document.getElementById("taskList"),
   statsSummary: document.getElementById("statsSummary"),
   reorderHint: document.getElementById("reorderHint"),
+  eventLogList: document.getElementById("eventLogList"),
 };
 
 const applyTheme = (theme) => {
@@ -70,6 +80,15 @@ const sortTasksManual = (tasks) =>
 
 const priorityOrder = { high: 0, medium: 1, low: 2 };
 const priorityLabels = { high: "高", medium: "中", low: "低" };
+const eventLabels = {
+  "task.create": "新建任务",
+  "task.edit": "编辑任务",
+  "task.complete": "完成任务",
+  "task.reopen": "重新开启任务",
+  "task.delete": "删除任务",
+  "action.undo": "撤销",
+  "action.redo": "重做",
+};
 
 const parseDate = (dateStr) => {
   if (!dateStr) return null;
@@ -163,6 +182,14 @@ const loadLists = async () => {
 const loadTasks = async () => {
   if (!state.currentListId) return;
   state.tasks = await getTasksByList(state.currentListId);
+};
+
+const loadEventLog = async () => {
+  state.eventLog = await getRecentEvents(20);
+};
+
+const loadEventStacks = async () => {
+  state.eventStacks = await getEventStacks();
 };
 
 const renderLists = () => {
@@ -277,6 +304,57 @@ const renderStats = () => {
     item.appendChild(value);
     els.statsSummary.appendChild(item);
   });
+};
+
+const formatEventTime = (timestamp) =>
+  new Date(timestamp).toLocaleString("zh-CN", { hour12: false });
+
+const buildEventTitle = (event) => {
+  if (!event) return "未知操作";
+  if (event.type === "action.undo" || event.type === "action.redo") {
+    const targetLabel = eventLabels[event.targetType] || "操作";
+    const title = event.targetTitle || "未命名任务";
+    return `${eventLabels[event.type]}：${targetLabel} · ${title}`;
+  }
+  const title = event.after?.title || event.before?.title || "未命名任务";
+  return `${eventLabels[event.type] || "操作"} · ${title}`;
+};
+
+const renderEventLog = () => {
+  if (!els.eventLogList) return;
+  els.eventLogList.innerHTML = "";
+  if (!state.eventLog.length) {
+    const empty = document.createElement("li");
+    empty.className = "event-item";
+    empty.textContent = "暂无操作记录。";
+    els.eventLogList.appendChild(empty);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  state.eventLog.forEach((event) => {
+    const item = document.createElement("li");
+    item.className = "event-item";
+
+    const title = document.createElement("div");
+    title.className = "event-title";
+    title.textContent = buildEventTitle(event);
+
+    const time = document.createElement("div");
+    time.className = "event-time";
+    time.textContent = formatEventTime(event.createdAt);
+
+    item.appendChild(title);
+    item.appendChild(time);
+    fragment.appendChild(item);
+  });
+  els.eventLogList.appendChild(fragment);
+};
+
+const updateUndoRedoButtons = () => {
+  if (!els.undoBtn || !els.redoBtn) return;
+  els.undoBtn.disabled = !state.eventStacks.undo.length;
+  els.redoBtn.disabled = !state.eventStacks.redo.length;
 };
 
 const canReorderTasks = () =>
@@ -438,8 +516,10 @@ const startEditTask = (task) => {
   openTaskModal("编辑任务");
 };
 
-const refreshTasks = async () => {
+const refreshAll = async () => {
   await loadTasks();
+  await loadEventLog();
+  await loadEventStacks();
   renderAll();
 };
 
@@ -448,6 +528,8 @@ const renderAll = () => {
   renderLists();
   renderStats();
   renderTasks();
+  renderEventLog();
+  updateUndoRedoButtons();
 };
 
 const handleFormSubmit = async (event) => {
@@ -486,7 +568,7 @@ const handleFormSubmit = async (event) => {
     });
   }
 
-  await refreshTasks();
+  await refreshAll();
   closeTaskModal();
 };
 
@@ -505,7 +587,7 @@ const handleTaskListClick = async (event) => {
   if (button?.dataset.action === "delete") {
     if (confirm("确定删除该任务吗？")) {
       await deleteTask(taskId);
-      await refreshTasks();
+      await refreshAll();
     }
   }
 
@@ -551,7 +633,7 @@ const moveTask = async (taskId, direction) => {
 
   await updateTask(current);
   await updateTask(target);
-  await refreshTasks();
+  await refreshAll();
 };
 
 const handleTaskCheckbox = async (event) => {
@@ -561,12 +643,8 @@ const handleTaskCheckbox = async (event) => {
   const task = state.tasks.find((t) => t.id === item.dataset.id);
   if (!task) return;
   const completed = event.target.checked;
-  await updateTask({
-    ...task,
-    completed,
-    completedAt: completed ? Date.now() : 0,
-  });
-  await refreshTasks();
+  await toggleTaskCompletion(task.id, completed);
+  await refreshAll();
 };
 
 const handleListActions = async (event) => {
@@ -650,8 +728,26 @@ const bindEvents = () => {
   els.clearCompletedBtn.addEventListener("click", async () => {
     if (!confirm("确定清理当前列表内已完成的任务吗？")) return;
     await clearCompletedTasks(state.currentListId);
-    await refreshTasks();
+    await refreshAll();
   });
+
+  if (els.undoBtn) {
+    els.undoBtn.addEventListener("click", async () => {
+      const result = await undoLastEvent();
+      if (result) {
+        await refreshAll();
+      }
+    });
+  }
+
+  if (els.redoBtn) {
+    els.redoBtn.addEventListener("click", async () => {
+      const result = await redoLastEvent();
+      if (result) {
+        await refreshAll();
+      }
+    });
+  }
 
   els.exportDataBtn.addEventListener("click", async () => {
     const data = await exportData();
@@ -690,8 +786,7 @@ const bindEvents = () => {
     try {
       await importData(payload, replace ? "replace" : "merge");
       await loadLists();
-      await loadTasks();
-      renderAll();
+      await refreshAll();
       alert("导入完成。");
     } catch (error) {
       alert("导入失败：数据格式不正确。");
@@ -719,6 +814,8 @@ const init = async () => {
   initTheme();
   await loadLists();
   await loadTasks();
+  await loadEventLog();
+  await loadEventStacks();
   renderAll();
   clearForm();
   bindEvents();

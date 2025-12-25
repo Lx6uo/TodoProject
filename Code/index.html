@@ -79,6 +79,8 @@
                 <label for="searchInput">搜索</label>
                 <input id="searchInput" type="search" placeholder="搜索任务..." />
               </div>
+              <button id="undoBtn" class="ghost-btn" type="button">↩ 撤销</button>
+              <button id="redoBtn" class="ghost-btn" type="button">↪ 重做</button>
               <button id="clearCompletedBtn" class="ghost-btn" type="button">
                 🧹 清理已完成
               </button>
@@ -104,6 +106,14 @@
             </div>
 
             <ul id="taskList" class="task-list" aria-live="polite"></ul>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2>最近操作记录</h2>
+              <span class="hint">记录新建、编辑、完成、撤销等操作</span>
+            </div>
+            <ul id="eventLogList" class="event-log" aria-live="polite"></ul>
           </section>
         </main>
       </div>

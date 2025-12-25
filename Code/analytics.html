@@ -76,6 +76,23 @@
           </div>
         </section>
 
+        <section class="panel">
+          <div class="summary-cards">
+            <div class="summary-card">
+              <h3>返工率</h3>
+              <div id="reworkRateValue">-</div>
+            </div>
+            <div class="summary-card">
+              <h3>日均完成</h3>
+              <div id="avgCompleteValue">-</div>
+            </div>
+            <div class="summary-card">
+              <h3>日均返工</h3>
+              <div id="avgReworkValue">-</div>
+            </div>
+          </div>
+        </section>
+
         <section class="chart-grid">
           <article class="chart-card">
             <h2>完成概览</h2>
@@ -88,6 +105,10 @@
           <article class="chart-card">
             <h2>优先级分布</h2>
             <div id="priorityChart" class="chart"></div>
+          </article>
+          <article class="chart-card">
+            <h2>完成耗时分布</h2>
+            <div id="durationChart" class="chart"></div>
           </article>
         </section>
       </main>

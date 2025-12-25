@@ -394,6 +394,13 @@ a {
   transform: translateY(-1px);
 }
 
+.primary-btn:disabled,
+.ghost-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .panel {
   padding: 18px;
   border-radius: var(--radius-md);
@@ -401,6 +408,13 @@ a {
   border: 1px solid var(--outline);
   display: grid;
   gap: 16px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 
 .hidden {
@@ -451,6 +465,35 @@ a {
   margin: 0;
   display: grid;
   gap: 10px;
+}
+
+.event-log {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.event-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--outline);
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.event-title {
+  flex: 1;
+}
+
+.event-time {
+  font-size: 12px;
+  color: var(--ink-soft);
 }
 
 .task-item {
