@@ -47,7 +47,7 @@ const els = {
   cancelEditBtn: document.getElementById("cancelEditBtn"),
   taskList: document.getElementById("taskList"),
   statsSummary: document.getElementById("statsSummary"),
-  dragHint: document.getElementById("dragHint"),
+  reorderHint: document.getElementById("reorderHint"),
 };
 
 const applyTheme = (theme) => {
@@ -243,9 +243,9 @@ const updateCurrentListName = () => {
 
 const setReorderHint = (canReorder) => {
   if (canReorder) {
-    els.dragHint.textContent = "使用上下箭头可调整任务顺序。";
+    els.reorderHint.textContent = "使用上下箭头可调整任务顺序。";
   } else {
-    els.dragHint.textContent = "切换到“状态：全部 + 排序：手动”后可调整顺序。";
+    els.reorderHint.textContent = "切换到“状态：全部 + 排序：手动”后可调整顺序。";
   }
 };
 
@@ -376,7 +376,6 @@ const createTaskElement = (task, reorderEnabled) => {
   item.appendChild(actions);
 
   if (task.completed) {
-    item.classList.add("completed");
     titleRow.style.textDecoration = "line-through";
     titleRow.style.opacity = 0.6;
   }

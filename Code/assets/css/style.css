@@ -102,17 +102,6 @@ a {
   gap: 16px;
 }
 
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--surface);
-  font-size: 20px;
-}
-
 .eyebrow {
   margin: 0;
   font-size: 12px;
@@ -618,21 +607,11 @@ a {
   width: 32px;
 }
 
-.task-actions .reorder button {
-  width: 32px;
-}
-
 .calendar-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-}
-
-.month-nav {
-  display: flex;
-  gap: 12px;
-  align-items: center;
 }
 
 .calendar-grid {
@@ -717,10 +696,6 @@ a {
 
 .task-item.simple {
   grid-template-columns: 1fr;
-}
-
-.task-item.simple .task-actions {
-  display: none;
 }
 
 .analytics .chart-grid {

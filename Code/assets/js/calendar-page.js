@@ -209,7 +209,6 @@ const createTaskElement = (task, listMap, showListName) => {
   item.appendChild(left);
 
   if (task.completed) {
-    item.classList.add("completed");
     titleRow.style.textDecoration = "line-through";
     titleRow.style.opacity = 0.6;
   }

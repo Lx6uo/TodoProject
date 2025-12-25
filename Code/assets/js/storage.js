@@ -181,22 +181,3 @@ export const clearCompletedTasks = async (listId) => {
   tasks.filter((task) => task.completed).forEach((task) => store.delete(task.id));
   await transactionDone(tx);
 };
-
-export const updateTaskOrders = async (listId, orderedIds) => {
-  const db = await openDB();
-  const tx = db.transaction("tasks", "readwrite");
-  const store = tx.objectStore("tasks");
-
-  for (let index = 0; index < orderedIds.length; index += 1) {
-    const taskId = orderedIds[index];
-    const task = await requestToPromise(store.get(taskId));
-    if (!task || task.listId !== listId) {
-      continue;
-    }
-    task.order = index;
-    task.updatedAt = timeNow();
-    store.put(task);
-  }
-
-  await transactionDone(tx);
-};

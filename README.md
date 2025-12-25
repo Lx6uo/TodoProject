@@ -7,14 +7,13 @@
    - `cd D:\Desk\MyDeskFiles\Courses\WebDev25-26\TodoProject\Code`
    - `npm install`（或 `pnpm install`）
 2. 使用本地静态服务器打开（不要直接 `file://`）：
-   - 方式 1（pnpm 推荐）：
-     - `pnpm dlx http-server . -p 5173`
-   - 方式 2（Python）：
-     - `python -m http.server 5173`
+   - 方式 1（pnpm 推荐）：`pnpm dlx http-server . -p 5173`
+   - 方式 2（npm）：`npx http-server . -p 5173`
+   - 方式 3（Python）：`python -m http.server 5173`
 3. 在浏览器访问：
-   - `http://localhost:5173/index.html`
-   - `http://localhost:5173/calendar.html`
-   - `http://localhost:5173/analytics.html`
+   - `http://127.0.0.1:5173/index.html`
+   - `http://127.0.0.1:5173/calendar.html`
+   - `http://127.0.0.1:5173/analytics.html`
 
 提示：`file://` 会阻止 ES Module 与 IndexedDB，请务必使用本地静态服务器。
 
@@ -22,7 +21,7 @@
 - 迁移到新电脑时，复制整个 `TodoProject/Code` 目录。
 - 进入 `Code/` 后运行 `npm install` 或 `pnpm install`，再按上面的方式启动本地服务器。
 - 如需部署为静态站点，可将 `Code/` 作为站点根目录上传（需确保 `node_modules` 可访问，或改为复制 ECharts 文件到项目内）。
-- 可在页面内使用“导出数据/导入数据”按钮迁移任务（支持覆盖或合并）。
+- 数据保存在浏览器 IndexedDB，克隆仓库不会带走；可使用“导出数据/导入数据”迁移。
 
 ## 项目文档
 - 需求与设计说明：`PROJECT_SPEC.md`
@@ -36,10 +35,12 @@ Code/
     js/app.js
     js/storage.js
     js/calendar.js
-    js/charts.js
     js/calendar-page.js
-    node_modules/echarts/dist/echarts.min.js
+    js/charts.js
+  node_modules/echarts/dist/echarts.min.js
   index.html
   analytics.html
   calendar.html
+  package.json
+  pnpm-lock.yaml
 ```
