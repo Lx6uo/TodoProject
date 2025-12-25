@@ -22,6 +22,9 @@ const state = {
 const applyTheme = (theme) => {
   document.documentElement.dataset.theme = theme;
   localStorage.setItem("theme", theme);
+  if (els.themeToggle) {
+    els.themeToggle.checked = theme === "dark";
+  }
 };
 
 const initTheme = () => {
@@ -223,9 +226,8 @@ const updateCharts = (charts) => {
 };
 
 const bindEvents = (charts) => {
-  els.themeToggle.addEventListener("click", () => {
-    const next =
-      document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  els.themeToggle.addEventListener("change", () => {
+    const next = els.themeToggle.checked ? "dark" : "light";
     applyTheme(next);
     updateCharts(charts);
   });

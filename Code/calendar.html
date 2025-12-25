@@ -10,24 +10,27 @@
     <div class="page">
       <header class="topbar">
         <div class="brand">
-          <span class="brand-mark">◯</span>
           <div>
             <p class="eyebrow">TODO list</p>
             <h1 class="title">日历视图</h1>
           </div>
         </div>
         <div class="top-actions">
-          <button id="themeToggle" class="ghost-btn" type="button" aria-label="切换主题">
-            主题
-          </button>
+          <div class="theme-switch">
+            <span class="theme-label">主题</span>
+            <label class="switch">
+              <input id="themeToggle" type="checkbox" role="switch" aria-label="切换主题" />
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
       </header>
 
       <nav class="nav-bar" aria-label="页面导航">
         <div class="nav-links">
-          <a class="nav-link" href="index.html">任务清单</a>
-          <a class="nav-link active" href="calendar.html">日历</a>
-          <a class="nav-link" href="analytics.html">数据分析</a>
+          <a class="nav-link" href="index.html">📝 任务清单</a>
+          <a class="nav-link active" href="calendar.html">📅 日历</a>
+          <a class="nav-link" href="analytics.html">📊 数据分析</a>
         </div>
       </nav>
 
@@ -38,21 +41,33 @@
               <label for="calendarListSelect">列表</label>
               <select id="calendarListSelect"></select>
             </div>
-          </div>
-          <div class="toolbar-right">
-            <button id="clearDateFilter" class="ghost-btn" type="button">
-              清除日期筛选
-            </button>
+            <div class="field">
+              <label for="calendarYearSelect">年份</label>
+              <select id="calendarYearSelect"></select>
+            </div>
+            <div class="field">
+              <label for="calendarMonthSelect">月份</label>
+              <select id="calendarMonthSelect">
+                <option value="1">1 月</option>
+                <option value="2">2 月</option>
+                <option value="3">3 月</option>
+                <option value="4">4 月</option>
+                <option value="5">5 月</option>
+                <option value="6">6 月</option>
+                <option value="7">7 月</option>
+                <option value="8">8 月</option>
+                <option value="9">9 月</option>
+                <option value="10">10 月</option>
+                <option value="11">11 月</option>
+                <option value="12">12 月</option>
+              </select>
+            </div>
           </div>
         </section>
 
         <section class="panel">
           <div class="calendar-header">
-            <div class="month-nav">
-              <button id="prevMonthBtn" class="ghost-btn" type="button">上月</button>
-              <h3 id="calendarMonthLabel">-</h3>
-              <button id="nextMonthBtn" class="ghost-btn" type="button">下月</button>
-            </div>
+            <h3 id="calendarMonthLabel">-</h3>
           </div>
           <div id="calendarGrid" class="calendar-grid" role="grid"></div>
         </section>

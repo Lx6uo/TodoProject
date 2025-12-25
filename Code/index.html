@@ -10,24 +10,27 @@
     <div class="page">
       <header class="topbar">
         <div class="brand">
-          <span class="brand-mark">◯</span>
           <div>
             <p class="eyebrow">TODO list</p>
             <h1 class="title">待办清单小程序</h1>
           </div>
         </div>
         <div class="top-actions">
-          <button id="themeToggle" class="ghost-btn" type="button" aria-label="切换主题">
-            主题
-          </button>
+          <div class="theme-switch">
+            <span class="theme-label">主题</span>
+            <label class="switch">
+              <input id="themeToggle" type="checkbox" role="switch" aria-label="切换主题" />
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
       </header>
 
       <nav class="nav-bar" aria-label="页面导航">
         <div class="nav-links">
-          <a class="nav-link active" href="index.html">任务清单</a>
-          <a class="nav-link" href="calendar.html">日历</a>
-          <a class="nav-link" href="analytics.html">数据分析</a>
+          <a class="nav-link active" href="index.html">📝 任务清单</a>
+          <a class="nav-link" href="calendar.html">📅 日历</a>
+          <a class="nav-link" href="analytics.html">📊 数据分析</a>
         </div>
       </nav>
 
@@ -35,7 +38,7 @@
         <aside class="sidebar">
           <div class="sidebar-header">
             <h2>列表</h2>
-            <button id="addListBtn" class="primary-btn" type="button">新建列表</button>
+            <button id="addListBtn" class="primary-btn" type="button">➕ 新建列表</button>
           </div>
           <ul id="listContainer" class="list-items" aria-label="任务列表"></ul>
         </aside>
@@ -48,7 +51,7 @@
                 <span id="currentListName" class="value">-</span>
               </div>
               <button id="openTaskModalBtn" class="primary-btn" type="button">
-                新建任务
+                ➕ 新建任务
               </button>
             </div>
             <div class="toolbar-right">
@@ -73,8 +76,20 @@
                 <input id="searchInput" type="search" placeholder="搜索任务..." />
               </div>
               <button id="clearCompletedBtn" class="ghost-btn" type="button">
-                清理已完成
+                🧹 清理已完成
               </button>
+              <button id="exportDataBtn" class="ghost-btn" type="button">
+                导出数据
+              </button>
+              <button id="importDataBtn" class="ghost-btn" type="button">
+                导入数据
+              </button>
+              <input
+                id="importFileInput"
+                type="file"
+                accept="application/json"
+                hidden
+              />
             </div>
           </section>
 
@@ -102,7 +117,7 @@
         <div class="modal-header">
           <h2 id="taskModalTitle">新建任务</h2>
           <button class="ghost-btn" type="button" data-action="close-modal">
-            关闭
+            ✖ 关闭
           </button>
         </div>
         <form id="taskForm" class="task-form">

@@ -12,25 +12,65 @@ const state = {
 const els = {
   themeToggle: document.getElementById("themeToggle"),
   listSelect: document.getElementById("calendarListSelect"),
+  yearSelect: document.getElementById("calendarYearSelect"),
+  monthSelect: document.getElementById("calendarMonthSelect"),
   calendarMonthLabel: document.getElementById("calendarMonthLabel"),
-  prevMonthBtn: document.getElementById("prevMonthBtn"),
-  nextMonthBtn: document.getElementById("nextMonthBtn"),
   calendarGrid: document.getElementById("calendarGrid"),
   calendarTaskList: document.getElementById("calendarTaskList"),
   calendarTaskTitle: document.getElementById("calendarTaskTitle"),
-  clearDateFilter: document.getElementById("clearDateFilter"),
 };
 
 const priorityLabels = { high: "高", medium: "中", low: "低" };
 
+const parseDate = (dateStr) => {
+  if (!dateStr) return null;
+  const [year, month, day] = dateStr.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+};
+
+const getRemainingInfo = (dueDate) => {
+  const due = parseDate(dueDate);
+  if (!due) {
+    return { label: "未设置", state: "none" };
+  }
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const diffDays = Math.round((due - start) / 86400000);
+  if (diffDays < 0) {
+    return { label: `已过期 ${Math.abs(diffDays)} 天`, state: "overdue" };
+  }
+  if (diffDays === 0) {
+    return { label: "今天到期", state: "today" };
+  }
+  return { label: `剩余 ${diffDays} 天`, state: "future" };
+};
+
 const applyTheme = (theme) => {
   document.documentElement.dataset.theme = theme;
   localStorage.setItem("theme", theme);
+  if (els.themeToggle) {
+    els.themeToggle.checked = theme === "dark";
+  }
 };
 
 const initTheme = () => {
   const savedTheme = localStorage.getItem("theme") || "light";
   applyTheme(savedTheme);
+};
+
+const buildYearOptions = () => {
+  const currentYear = state.calendarDate.getFullYear();
+  const startYear = currentYear - 5;
+  const endYear = currentYear + 5;
+  els.yearSelect.innerHTML = "";
+
+  for (let year = startYear; year <= endYear; year += 1) {
+    const option = document.createElement("option");
+    option.value = String(year);
+    option.textContent = `${year} 年`;
+    els.yearSelect.appendChild(option);
+  }
 };
 
 const buildListOptions = () => {
@@ -69,6 +109,8 @@ const renderCalendar = () => {
   const viewDate = state.calendarDate;
   const cells = buildCalendarCells(viewDate.getFullYear(), viewDate.getMonth());
   els.calendarMonthLabel.textContent = getMonthLabel(viewDate);
+  els.yearSelect.value = String(viewDate.getFullYear());
+  els.monthSelect.value = String(viewDate.getMonth() + 1);
 
   const counts = state.tasks.reduce((acc, task) => {
     if (!task.dueDate) return acc;
@@ -145,12 +187,20 @@ const createTaskElement = (task, listMap, showListName) => {
   priorityPill.dataset.priority = task.priority;
   priorityPill.textContent = priorityLabels[task.priority] || task.priority;
 
+  const remainingInfo = getRemainingInfo(task.dueDate);
+  const remainingTag = document.createElement("span");
+  remainingTag.className = "task-remaining";
+  remainingTag.dataset.state = remainingInfo.state;
+  remainingTag.textContent = remainingInfo.label;
+
   const dot = document.createElement("span");
   dot.textContent = " · ";
 
   metaRow.appendChild(duePill);
   metaRow.appendChild(dot);
   metaRow.appendChild(priorityPill);
+  metaRow.appendChild(dot.cloneNode(true));
+  metaRow.appendChild(remainingTag);
 
   textWrap.appendChild(titleRow);
   textWrap.appendChild(noteRow);
@@ -221,9 +271,8 @@ const handleTaskCheckbox = async (event) => {
 };
 
 const bindEvents = () => {
-  els.themeToggle.addEventListener("click", () => {
-    const next =
-      document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  els.themeToggle.addEventListener("change", () => {
+    const next = els.themeToggle.checked ? "dark" : "light";
     applyTheme(next);
   });
 
@@ -234,23 +283,18 @@ const bindEvents = () => {
     await refresh();
   });
 
-  els.prevMonthBtn.addEventListener("click", () => {
-    state.calendarDate = new Date(
-      state.calendarDate.getFullYear(),
-      state.calendarDate.getMonth() - 1,
-      1
-    );
+  const updateCalendarFromSelect = () => {
+    const year = Number(els.yearSelect.value);
+    const monthIndex = Number(els.monthSelect.value) - 1;
+    if (Number.isNaN(year) || Number.isNaN(monthIndex)) return;
+    state.calendarDate = new Date(year, monthIndex, 1);
+    state.selectedDate = null;
     renderCalendar();
-  });
+    renderCalendarTasks();
+  };
 
-  els.nextMonthBtn.addEventListener("click", () => {
-    state.calendarDate = new Date(
-      state.calendarDate.getFullYear(),
-      state.calendarDate.getMonth() + 1,
-      1
-    );
-    renderCalendar();
-  });
+  els.yearSelect.addEventListener("change", updateCalendarFromSelect);
+  els.monthSelect.addEventListener("change", updateCalendarFromSelect);
 
   els.calendarGrid.addEventListener("click", (event) => {
     const cell = event.target.closest(".calendar-cell");
@@ -260,17 +304,12 @@ const bindEvents = () => {
     renderCalendarTasks();
   });
 
-  els.clearDateFilter.addEventListener("click", () => {
-    state.selectedDate = null;
-    renderCalendar();
-    renderCalendarTasks();
-  });
-
   els.calendarTaskList.addEventListener("change", handleTaskCheckbox);
 };
 
 const init = async () => {
   initTheme();
+  buildYearOptions();
   await loadLists();
   await refresh();
   bindEvents();

@@ -10,24 +10,27 @@
     <div class="page">
       <header class="topbar">
         <div class="brand">
-          <span class="brand-mark">◯</span>
           <div>
             <p class="eyebrow">TODO list</p>
             <h1 class="title">数据分析</h1>
           </div>
         </div>
         <div class="top-actions">
-          <button id="themeToggle" class="ghost-btn" type="button" aria-label="切换主题">
-            主题
-          </button>
+          <div class="theme-switch">
+            <span class="theme-label">主题</span>
+            <label class="switch">
+              <input id="themeToggle" type="checkbox" role="switch" aria-label="切换主题" />
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
       </header>
 
       <nav class="nav-bar" aria-label="页面导航">
         <div class="nav-links">
-          <a class="nav-link" href="index.html">任务清单</a>
-          <a class="nav-link" href="calendar.html">日历</a>
-          <a class="nav-link active" href="analytics.html">数据分析</a>
+          <a class="nav-link" href="index.html">📝 任务清单</a>
+          <a class="nav-link" href="calendar.html">📅 日历</a>
+          <a class="nav-link active" href="analytics.html">📊 数据分析</a>
         </div>
       </nav>
 

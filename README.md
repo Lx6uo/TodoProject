@@ -22,6 +22,7 @@
 - 迁移到新电脑时，复制整个 `TodoProject/Code` 目录。
 - 进入 `Code/` 后运行 `npm install` 或 `pnpm install`，再按上面的方式启动本地服务器。
 - 如需部署为静态站点，可将 `Code/` 作为站点根目录上传（需确保 `node_modules` 可访问，或改为复制 ECharts 文件到项目内）。
+- 可在页面内使用“导出数据/导入数据”按钮迁移任务（支持覆盖或合并）。
 
 ## 项目文档
 - 需求与设计说明：`PROJECT_SPEC.md`

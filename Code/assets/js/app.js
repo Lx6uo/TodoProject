@@ -4,11 +4,12 @@ import {
   clearCompletedTasks,
   deleteList,
   deleteTask,
+  exportData,
   getLists,
   getTasksByList,
+  importData,
   updateList,
   updateTask,
-  updateTaskOrders,
 } from "./storage.js";
 
 const state = {
@@ -31,6 +32,9 @@ const els = {
   sortSelect: document.getElementById("sortSelect"),
   searchInput: document.getElementById("searchInput"),
   clearCompletedBtn: document.getElementById("clearCompletedBtn"),
+  exportDataBtn: document.getElementById("exportDataBtn"),
+  importDataBtn: document.getElementById("importDataBtn"),
+  importFileInput: document.getElementById("importFileInput"),
   taskModal: document.getElementById("taskModal"),
   taskModalTitle: document.getElementById("taskModalTitle"),
   taskForm: document.getElementById("taskForm"),
@@ -49,6 +53,9 @@ const els = {
 const applyTheme = (theme) => {
   document.documentElement.dataset.theme = theme;
   localStorage.setItem("theme", theme);
+  if (els.themeToggle) {
+    els.themeToggle.checked = theme === "dark";
+  }
 };
 
 const initTheme = () => {
@@ -63,6 +70,30 @@ const sortTasksManual = (tasks) =>
 
 const priorityOrder = { high: 0, medium: 1, low: 2 };
 const priorityLabels = { high: "高", medium: "中", low: "低" };
+
+const parseDate = (dateStr) => {
+  if (!dateStr) return null;
+  const [year, month, day] = dateStr.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+};
+
+const getRemainingInfo = (dueDate) => {
+  const due = parseDate(dueDate);
+  if (!due) {
+    return { label: "未设置", state: "none" };
+  }
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const diffDays = Math.round((due - start) / 86400000);
+  if (diffDays < 0) {
+    return { label: `已过期 ${Math.abs(diffDays)} 天`, state: "overdue" };
+  }
+  if (diffDays === 0) {
+    return { label: "今天到期", state: "today" };
+  }
+  return { label: `剩余 ${diffDays} 天`, state: "future" };
+};
 
 const openTaskModal = (title) => {
   els.taskModalTitle.textContent = title;
@@ -150,22 +181,42 @@ const renderLists = () => {
     selectBtn.textContent = list.name;
     item.appendChild(selectBtn);
 
+    const reorderWrap = document.createElement("div");
+    reorderWrap.className = "list-reorder";
+
+    const upBtn = document.createElement("button");
+    upBtn.type = "button";
+    upBtn.dataset.action = "move-up";
+    upBtn.className = "arrow-btn";
+    upBtn.textContent = "↑";
+
+    const downBtn = document.createElement("button");
+    downBtn.type = "button";
+    downBtn.dataset.action = "move-down";
+    downBtn.className = "arrow-btn";
+    downBtn.textContent = "↓";
+
+    reorderWrap.appendChild(upBtn);
+    reorderWrap.appendChild(downBtn);
+
     const actions = document.createElement("div");
     actions.className = "list-actions";
 
     const renameBtn = document.createElement("button");
     renameBtn.type = "button";
     renameBtn.dataset.action = "rename";
+    renameBtn.className = "list-action-btn";
     renameBtn.textContent = "重命名";
     actions.appendChild(renameBtn);
 
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.dataset.action = "delete";
-    deleteBtn.className = "danger";
+    deleteBtn.className = "list-action-btn danger";
     deleteBtn.textContent = "删除";
     actions.appendChild(deleteBtn);
 
+    item.appendChild(reorderWrap);
     item.appendChild(actions);
     fragment.appendChild(item);
   });
@@ -190,11 +241,11 @@ const updateCurrentListName = () => {
   els.currentListName.textContent = currentList ? currentList.name : "-";
 };
 
-const setDragHint = (canDrag) => {
-  if (canDrag) {
-    els.dragHint.textContent = "在手动排序下可拖拽调整顺序。";
+const setReorderHint = (canReorder) => {
+  if (canReorder) {
+    els.dragHint.textContent = "使用上下箭头可调整任务顺序。";
   } else {
-    els.dragHint.textContent = "切换到“状态：全部 + 排序：手动”后可拖拽排序。";
+    els.dragHint.textContent = "切换到“状态：全部 + 排序：手动”后可调整顺序。";
   }
 };
 
@@ -228,18 +279,13 @@ const renderStats = () => {
   });
 };
 
-const canDragTasks = () =>
+const canReorderTasks = () =>
   state.filterStatus === "all" && state.sortBy === "manual" && !state.searchQuery;
 
-const createTaskElement = (task, dragEnabled) => {
+const createTaskElement = (task, reorderEnabled) => {
   const item = document.createElement("li");
   item.className = "task-item";
   item.dataset.id = task.id;
-  item.draggable = dragEnabled;
-
-  const handle = document.createElement("div");
-  handle.className = "drag-handle";
-  handle.textContent = "⋮⋮";
 
   const titleRow = document.createElement("div");
   titleRow.className = "task-title";
@@ -284,6 +330,32 @@ const createTaskElement = (task, dragEnabled) => {
   const actions = document.createElement("div");
   actions.className = "task-actions";
 
+  const reorderWrap = document.createElement("div");
+  reorderWrap.className = "reorder-stack";
+
+  const upBtn = document.createElement("button");
+  upBtn.type = "button";
+  upBtn.dataset.action = "up";
+  upBtn.className = "arrow-btn";
+  upBtn.textContent = "↑";
+  upBtn.disabled = !reorderEnabled;
+
+  const downBtn = document.createElement("button");
+  downBtn.type = "button";
+  downBtn.dataset.action = "down";
+  downBtn.className = "arrow-btn";
+  downBtn.textContent = "↓";
+  downBtn.disabled = !reorderEnabled;
+
+  reorderWrap.appendChild(upBtn);
+  reorderWrap.appendChild(downBtn);
+
+  const remainingInfo = getRemainingInfo(task.dueDate);
+  const remainingTag = document.createElement("div");
+  remainingTag.className = "task-remaining";
+  remainingTag.dataset.state = remainingInfo.state;
+  remainingTag.textContent = remainingInfo.label;
+
   const editBtn = document.createElement("button");
   editBtn.type = "button";
   editBtn.dataset.action = "edit";
@@ -295,27 +367,11 @@ const createTaskElement = (task, dragEnabled) => {
   deleteBtn.className = "danger";
   deleteBtn.textContent = "删除";
 
-  const reorderWrap = document.createElement("div");
-  reorderWrap.className = "reorder";
-
-  const upBtn = document.createElement("button");
-  upBtn.type = "button";
-  upBtn.dataset.action = "up";
-  upBtn.textContent = "↑";
-
-  const downBtn = document.createElement("button");
-  downBtn.type = "button";
-  downBtn.dataset.action = "down";
-  downBtn.textContent = "↓";
-
-  reorderWrap.appendChild(upBtn);
-  reorderWrap.appendChild(downBtn);
-
+  actions.appendChild(remainingTag);
   actions.appendChild(editBtn);
   actions.appendChild(deleteBtn);
-  actions.appendChild(reorderWrap);
 
-  item.appendChild(handle);
+  item.appendChild(reorderWrap);
   item.appendChild(left);
   item.appendChild(actions);
 
@@ -330,11 +386,10 @@ const createTaskElement = (task, dragEnabled) => {
 
 const renderTasks = () => {
   els.taskList.innerHTML = "";
-  const dragEnabled = canDragTasks();
+  const reorderEnabled = canReorderTasks();
   const visibleTasks = sortTasks(filterTasks(state.tasks));
 
-  setDragHint(dragEnabled);
-  els.taskList.dataset.drag = dragEnabled ? "true" : "false";
+  setReorderHint(reorderEnabled);
 
   if (!visibleTasks.length) {
     const empty = document.createElement("li");
@@ -346,7 +401,7 @@ const renderTasks = () => {
 
   const fragment = document.createDocumentFragment();
   visibleTasks.forEach((task) => {
-    const item = createTaskElement(task, dragEnabled);
+    const item = createTaskElement(task, reorderEnabled);
     fragment.appendChild(item);
   });
   els.taskList.appendChild(fragment);
@@ -464,6 +519,25 @@ const handleTaskListClick = async (event) => {
   }
 };
 
+const moveList = async (listId, direction) => {
+  const ordered = sortLists(state.lists);
+  const index = ordered.findIndex((list) => list.id === listId);
+  const targetIndex = index + direction;
+  if (index < 0 || targetIndex < 0 || targetIndex >= ordered.length) return;
+
+  const current = ordered[index];
+  const target = ordered[targetIndex];
+  const temp = current.order;
+  current.order = target.order;
+  target.order = temp;
+
+  await updateList(current);
+  await updateList(target);
+  await loadLists();
+  renderLists();
+  updateCurrentListName();
+};
+
 const moveTask = async (taskId, direction) => {
   const ordered = sortTasksManual(state.tasks);
   const index = ordered.findIndex((task) => task.id === taskId);
@@ -526,70 +600,19 @@ const handleListActions = async (event) => {
       renderAll();
     }
   }
-};
 
-const handleDragStart = (event) => {
-  if (els.taskList.dataset.drag !== "true") return;
-  const item = event.target.closest(".task-item");
-  if (!item) return;
-  if (!event.target.closest(".drag-handle")) {
-    event.preventDefault();
-    return;
+  if (event.target.dataset.action === "move-up") {
+    await moveList(listId, -1);
   }
-  item.classList.add("dragging");
-  event.dataTransfer.effectAllowed = "move";
-  event.dataTransfer.setData("text/plain", item.dataset.id);
-};
 
-const handleDragEnd = async (event) => {
-  const item = event.target.closest(".task-item");
-  if (item) item.classList.remove("dragging");
-  if (els.taskList.dataset.drag !== "true") return;
-
-  const orderedIds = Array.from(els.taskList.querySelectorAll(".task-item"))
-    .filter((node) => node.dataset.id)
-    .map((node) => node.dataset.id);
-
-  await updateTaskOrders(state.currentListId, orderedIds);
-  await refreshTasks();
-};
-
-const getDragAfterElement = (container, y) => {
-  const draggableElements = [
-    ...container.querySelectorAll(".task-item:not(.dragging)"),
-  ];
-
-  return draggableElements.reduce(
-    (closest, child) => {
-      const box = child.getBoundingClientRect();
-      const offset = y - box.top - box.height / 2;
-      if (offset < 0 && offset > closest.offset) {
-        return { offset, element: child };
-      }
-      return closest;
-    },
-    { offset: Number.NEGATIVE_INFINITY, element: null }
-  ).element;
-};
-
-const handleDragOver = (event) => {
-  if (els.taskList.dataset.drag !== "true") return;
-  event.preventDefault();
-  const afterElement = getDragAfterElement(els.taskList, event.clientY);
-  const dragging = document.querySelector(".dragging");
-  if (!dragging) return;
-
-  if (afterElement == null) {
-    els.taskList.appendChild(dragging);
-  } else {
-    els.taskList.insertBefore(dragging, afterElement);
+  if (event.target.dataset.action === "move-down") {
+    await moveList(listId, 1);
   }
 };
 
 const bindEvents = () => {
-  els.themeToggle.addEventListener("click", () => {
-    const next =
-      document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  els.themeToggle.addEventListener("change", () => {
+    const next = els.themeToggle.checked ? "dark" : "light";
     applyTheme(next);
   });
 
@@ -631,6 +654,51 @@ const bindEvents = () => {
     await refreshTasks();
   });
 
+  els.exportDataBtn.addEventListener("click", async () => {
+    const data = await exportData();
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const stamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "")
+      .replace("T", "-")
+      .slice(0, 15);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `待办备份-${stamp}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  });
+
+  els.importDataBtn.addEventListener("click", () => {
+    els.importFileInput.value = "";
+    els.importFileInput.click();
+  });
+
+  els.importFileInput.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const content = await file.text();
+    let payload;
+    try {
+      payload = JSON.parse(content);
+    } catch (error) {
+      alert("导入失败：文件不是有效的 JSON。");
+      return;
+    }
+    const replace = confirm("是否覆盖现有数据？确定=覆盖，取消=合并。");
+    try {
+      await importData(payload, replace ? "replace" : "merge");
+      await loadLists();
+      await loadTasks();
+      renderAll();
+      alert("导入完成。");
+    } catch (error) {
+      alert("导入失败：数据格式不正确。");
+    }
+  });
+
   els.taskForm.addEventListener("submit", handleFormSubmit);
   els.cancelEditBtn.addEventListener("click", closeTaskModal);
   els.taskModal.addEventListener("click", (event) => {
@@ -646,9 +714,6 @@ const bindEvents = () => {
 
   els.taskList.addEventListener("click", handleTaskListClick);
   els.taskList.addEventListener("change", handleTaskCheckbox);
-  els.taskList.addEventListener("dragstart", handleDragStart);
-  els.taskList.addEventListener("dragend", handleDragEnd);
-  els.taskList.addEventListener("dragover", handleDragOver);
 };
 
 const init = async () => {

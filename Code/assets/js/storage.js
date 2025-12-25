@@ -110,6 +110,36 @@ export const getAllTasks = async () => {
   return requestToPromise(db.transaction("tasks").objectStore("tasks").getAll());
 };
 
+export const exportData = async () => {
+  const [lists, tasks] = await Promise.all([getLists(), getAllTasks()]);
+  return {
+    version: 1,
+    exportedAt: timeNow(),
+    lists,
+    tasks,
+  };
+};
+
+export const importData = async (payload, mode = "merge") => {
+  if (!payload || !Array.isArray(payload.lists) || !Array.isArray(payload.tasks)) {
+    throw new Error("导入数据格式不正确");
+  }
+  const db = await openDB();
+  const tx = db.transaction(["lists", "tasks"], "readwrite");
+  const listStore = tx.objectStore("lists");
+  const taskStore = tx.objectStore("tasks");
+
+  if (mode === "replace") {
+    listStore.clear();
+    taskStore.clear();
+  }
+
+  payload.lists.forEach((list) => listStore.put(list));
+  payload.tasks.forEach((task) => taskStore.put(task));
+
+  await transactionDone(tx);
+};
+
 export const addTask = async (task) => {
   const db = await openDB();
   const now = timeNow();
