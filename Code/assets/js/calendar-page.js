@@ -4,7 +4,7 @@ import {
   getTasksByList,
   toggleTaskCompletion,
 } from "./storage.js";
-import { buildCalendarCells, getMonthLabel } from "./calendar.js";
+import { buildCalendarCells, formatDateKey, getMonthLabel } from "./calendar.js";
 
 const state = {
   lists: [],
@@ -113,6 +113,7 @@ const loadTasks = async () => {
 const renderCalendar = () => {
   const viewDate = state.calendarDate;
   const cells = buildCalendarCells(viewDate.getFullYear(), viewDate.getMonth());
+  const todayKey = formatDateKey(new Date());
   els.calendarMonthLabel.textContent = getMonthLabel(viewDate);
   els.yearSelect.value = String(viewDate.getFullYear());
   els.monthSelect.value = String(viewDate.getMonth() + 1);
@@ -129,6 +130,7 @@ const renderCalendar = () => {
     const item = document.createElement("div");
     item.className = "calendar-cell";
     if (!cell.isCurrentMonth) item.classList.add("inactive");
+    if (cell.key === todayKey) item.classList.add("today");
     if (cell.key === state.selectedDate) item.classList.add("selected");
     item.dataset.date = cell.key;
 

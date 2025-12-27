@@ -480,6 +480,7 @@ a {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--outline);
@@ -681,6 +682,16 @@ a {
 .calendar-cell.selected {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(31, 93, 100, 0.15);
+}
+
+.calendar-cell.today {
+  border-color: var(--accent);
+  background: var(--bg-alt);
+}
+
+.calendar-cell.today .day {
+  color: var(--accent-strong);
+  font-weight: 600;
 }
 
 .calendar-cell .day {

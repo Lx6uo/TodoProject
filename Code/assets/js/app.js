@@ -761,7 +761,7 @@ const bindEvents = () => {
       .slice(0, 15);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `待办备份-${stamp}.json`;
+    link.download = `备份-${stamp}.json`;
     link.click();
     URL.revokeObjectURL(url);
   });
