@@ -1,5 +1,7 @@
 import { getAllEvents, getAllTasks, getLists } from "./storage.js";
 import { formatDateKey } from "./calendar.js";
+import { renderListOptions } from "./list-ui.js";
+import { bindThemeToggle, initTheme } from "./theme.js";
 
 const els = {
   themeToggle: document.getElementById("themeToggle"),
@@ -8,7 +10,6 @@ const els = {
   customRangeFields: document.getElementById("customRangeFields"),
   startDate: document.getElementById("startDate"),
   endDate: document.getElementById("endDate"),
-  metricSelect: document.getElementById("metricSelect"),
   reworkRateValue: document.getElementById("reworkRateValue"),
   avgCompleteValue: document.getElementById("avgCompleteValue"),
   avgReworkValue: document.getElementById("avgReworkValue"),
@@ -24,19 +25,6 @@ const state = {
   events: [],
 };
 
-const applyTheme = (theme) => {
-  document.documentElement.dataset.theme = theme;
-  localStorage.setItem("theme", theme);
-  if (els.themeToggle) {
-    els.themeToggle.checked = theme === "dark";
-  }
-};
-
-const initTheme = () => {
-  const savedTheme = localStorage.getItem("theme") || "light";
-  applyTheme(savedTheme);
-};
-
 const readThemeColors = () => {
   const styles = getComputedStyle(document.documentElement);
   return {
@@ -47,21 +35,6 @@ const readThemeColors = () => {
     surface: styles.getPropertyValue("--surface").trim(),
     outline: styles.getPropertyValue("--outline").trim(),
   };
-};
-
-const buildListOptions = () => {
-  els.listSelect.innerHTML = "";
-  const allOption = document.createElement("option");
-  allOption.value = "all";
-  allOption.textContent = "全部列表";
-  els.listSelect.appendChild(allOption);
-
-  state.lists.forEach((list) => {
-    const option = document.createElement("option");
-    option.value = list.id;
-    option.textContent = list.name;
-    els.listSelect.appendChild(option);
-  });
 };
 
 const getScopedTasks = () => {
@@ -188,12 +161,17 @@ const updateCharts = (charts) => {
   const range = getRange();
   const scopedEvents = getScopedEvents();
   const rangeEvents = filterEventsByRange(scopedEvents, range);
+  const rangeEventsAll = filterEventsByRange(state.events, range);
   const completedEvents = rangeEvents.filter((event) => event.type === "task.complete");
   const reopenEvents = rangeEvents.filter((event) => event.type === "task.reopen");
   const rangeDays = getRangeDays(range);
-  const reworkRate = completedEvents.length
-    ? reopenEvents.length / completedEvents.length
-    : 0;
+  const redoTaskCount = new Set(
+    rangeEventsAll
+      .filter((event) => event.type === "task.reopen" && event.taskId)
+      .map((event) => event.taskId)
+  ).size;
+  const allTaskCount = state.tasks.length;
+  const reworkRate = allTaskCount ? redoTaskCount / allTaskCount : 0;
   const avgComplete = rangeDays ? completedEvents.length / rangeDays : 0;
   const avgRework = rangeDays ? reopenEvents.length / rangeDays : 0;
 
@@ -259,28 +237,22 @@ const updateCharts = (charts) => {
 
   const trend = buildTrendSeries(tasks, range);
   const labelShort = trend.labels.map((label) => label.slice(5));
-  const series = [];
-  if (els.metricSelect.value === "both" || els.metricSelect.value === "created") {
-    series.push({
+  const series = [
+    {
       name: "新增",
       type: "line",
       smooth: true,
       data: trend.created,
       color: colors.accent,
-    });
-  }
-  if (
-    els.metricSelect.value === "both" ||
-    els.metricSelect.value === "completed"
-  ) {
-    series.push({
+    },
+    {
       name: "完成",
       type: "line",
       smooth: true,
       data: trend.completed,
       color: colors.accentWarm,
-    });
-  }
+    },
+  ];
 
   charts.trend.setOption({
     grid: { left: 32, right: 12, top: 20, bottom: 32 },
@@ -325,11 +297,7 @@ const updateCharts = (charts) => {
 };
 
 const bindEvents = (charts) => {
-  els.themeToggle.addEventListener("change", () => {
-    const next = els.themeToggle.checked ? "dark" : "light";
-    applyTheme(next);
-    updateCharts(charts);
-  });
+  bindThemeToggle(els.themeToggle, () => updateCharts(charts));
 
   els.listSelect.addEventListener("change", () => updateCharts(charts));
   els.rangeSelect.addEventListener("change", () => {
@@ -341,7 +309,6 @@ const bindEvents = (charts) => {
   });
   els.startDate.addEventListener("change", () => updateCharts(charts));
   els.endDate.addEventListener("change", () => updateCharts(charts));
-  els.metricSelect.addEventListener("change", () => updateCharts(charts));
 
   window.addEventListener("resize", () => {
     charts.completion.resize();
@@ -352,11 +319,14 @@ const bindEvents = (charts) => {
 };
 
 const init = async () => {
-  initTheme();
+  initTheme(els.themeToggle);
   state.lists = await getLists();
   state.tasks = await getAllTasks();
   state.events = await getAllEvents();
-  buildListOptions();
+  renderListOptions(els.listSelect, state.lists, {
+    includeAll: true,
+    selectedValue: "all",
+  });
   const charts = initCharts();
   updateCharts(charts);
   bindEvents(charts);

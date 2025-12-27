@@ -5,6 +5,9 @@ import {
   toggleTaskCompletion,
 } from "./storage.js";
 import { buildCalendarCells, formatDateKey, getMonthLabel } from "./calendar.js";
+import { renderListOptions } from "./list-ui.js";
+import { buildTaskMain } from "./task-ui.js";
+import { bindThemeToggle, initTheme } from "./theme.js";
 
 const state = {
   lists: [],
@@ -25,45 +28,6 @@ const els = {
   calendarTaskTitle: document.getElementById("calendarTaskTitle"),
 };
 
-const priorityLabels = { high: "高", medium: "中", low: "低" };
-
-const parseDate = (dateStr) => {
-  if (!dateStr) return null;
-  const [year, month, day] = dateStr.split("-").map(Number);
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day);
-};
-
-const getRemainingInfo = (dueDate) => {
-  const due = parseDate(dueDate);
-  if (!due) {
-    return { label: "未设置", state: "none" };
-  }
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const diffDays = Math.round((due - start) / 86400000);
-  if (diffDays < 0) {
-    return { label: `已过期 ${Math.abs(diffDays)} 天`, state: "overdue" };
-  }
-  if (diffDays === 0) {
-    return { label: "今天到期", state: "today" };
-  }
-  return { label: `剩余 ${diffDays} 天`, state: "future" };
-};
-
-const applyTheme = (theme) => {
-  document.documentElement.dataset.theme = theme;
-  localStorage.setItem("theme", theme);
-  if (els.themeToggle) {
-    els.themeToggle.checked = theme === "dark";
-  }
-};
-
-const initTheme = () => {
-  const savedTheme = localStorage.getItem("theme") || "light";
-  applyTheme(savedTheme);
-};
-
 const buildYearOptions = () => {
   const currentYear = state.calendarDate.getFullYear();
   const startYear = currentYear - 5;
@@ -78,28 +42,15 @@ const buildYearOptions = () => {
   }
 };
 
-const buildListOptions = () => {
-  els.listSelect.innerHTML = "";
-  const allOption = document.createElement("option");
-  allOption.value = "all";
-  allOption.textContent = "全部列表";
-  els.listSelect.appendChild(allOption);
-
-  state.lists.forEach((list) => {
-    const option = document.createElement("option");
-    option.value = list.id;
-    option.textContent = list.name;
-    els.listSelect.appendChild(option);
-  });
-};
-
 const loadLists = async () => {
   state.lists = await getLists();
-  buildListOptions();
   const saved = localStorage.getItem("calendarListId");
   const isValid = saved && state.lists.some((list) => list.id === saved);
   state.selectedListId = isValid ? saved : "all";
-  els.listSelect.value = state.selectedListId;
+  renderListOptions(els.listSelect, state.lists, {
+    includeAll: true,
+    selectedValue: state.selectedListId,
+  });
 };
 
 const loadTasks = async () => {
@@ -154,71 +105,13 @@ const createTaskElement = (task, listMap, showListName) => {
   const item = document.createElement("li");
   item.className = "task-item simple";
   item.dataset.id = task.id;
-
-  const checkbox = document.createElement("input");
-  checkbox.type = "checkbox";
-  checkbox.className = "task-check";
-  checkbox.checked = task.completed;
-
-  const left = document.createElement("div");
-  left.className = "task-left";
-  left.appendChild(checkbox);
-
-  const textWrap = document.createElement("div");
-  textWrap.className = "task-main";
-
-  const titleRow = document.createElement("div");
-  titleRow.className = "task-title";
-  titleRow.textContent = task.title;
-
-  const noteRow = document.createElement("div");
-  noteRow.className = "task-note";
-  noteRow.textContent = task.note || "暂无备注";
-
-  const metaRow = document.createElement("div");
-  metaRow.className = "task-meta";
-
-  if (showListName) {
-    const listPill = document.createElement("span");
-    listPill.className = "pill";
-    listPill.textContent = listMap.get(task.listId) || "未命名列表";
-    metaRow.appendChild(listPill);
-  }
-
-  const dueText = task.dueDate ? `截止 ${task.dueDate}` : "无截止日期";
-  const duePill = document.createElement("span");
-  duePill.className = "pill";
-  duePill.textContent = dueText;
-  const priorityPill = document.createElement("span");
-  priorityPill.className = "pill";
-  priorityPill.dataset.priority = task.priority;
-  priorityPill.textContent = priorityLabels[task.priority] || task.priority;
-
-  const remainingInfo = getRemainingInfo(task.dueDate);
-  const remainingTag = document.createElement("span");
-  remainingTag.className = "task-remaining";
-  remainingTag.dataset.state = remainingInfo.state;
-  remainingTag.textContent = remainingInfo.label;
-
-  const dot = document.createElement("span");
-  dot.textContent = " · ";
-
-  metaRow.appendChild(duePill);
-  metaRow.appendChild(dot);
-  metaRow.appendChild(priorityPill);
-  metaRow.appendChild(dot.cloneNode(true));
-  metaRow.appendChild(remainingTag);
-
-  textWrap.appendChild(titleRow);
-  textWrap.appendChild(noteRow);
-  textWrap.appendChild(metaRow);
-  left.appendChild(textWrap);
+  const listName = listMap.get(task.listId) || "";
+  const { left } = buildTaskMain(task, {
+    showListName,
+    listName,
+    includeRemaining: true,
+  });
   item.appendChild(left);
-
-  if (task.completed) {
-    titleRow.style.textDecoration = "line-through";
-    titleRow.style.opacity = 0.6;
-  }
 
   return item;
 };
@@ -273,10 +166,7 @@ const handleTaskCheckbox = async (event) => {
 };
 
 const bindEvents = () => {
-  els.themeToggle.addEventListener("change", () => {
-    const next = els.themeToggle.checked ? "dark" : "light";
-    applyTheme(next);
-  });
+  bindThemeToggle(els.themeToggle);
 
   els.listSelect.addEventListener("change", async () => {
     state.selectedListId = els.listSelect.value;
@@ -310,7 +200,7 @@ const bindEvents = () => {
 };
 
 const init = async () => {
-  initTheme();
+  initTheme(els.themeToggle);
   buildYearOptions();
   await loadLists();
   await refresh();

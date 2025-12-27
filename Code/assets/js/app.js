@@ -16,6 +16,9 @@ import {
   undoLastEvent,
   redoLastEvent,
 } from "./storage.js";
+import { renderListOptions } from "./list-ui.js";
+import { buildTaskMain, createRemainingTag } from "./task-ui.js";
+import { bindThemeToggle, initTheme } from "./theme.js";
 
 const state = {
   lists: [],
@@ -60,26 +63,12 @@ const els = {
   eventLogList: document.getElementById("eventLogList"),
 };
 
-const applyTheme = (theme) => {
-  document.documentElement.dataset.theme = theme;
-  localStorage.setItem("theme", theme);
-  if (els.themeToggle) {
-    els.themeToggle.checked = theme === "dark";
-  }
-};
-
-const initTheme = () => {
-  const savedTheme = localStorage.getItem("theme") || "light";
-  applyTheme(savedTheme);
-};
-
 const sortLists = (lists) => [...lists].sort((a, b) => a.order - b.order);
 
 const sortTasksManual = (tasks) =>
   [...tasks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
 const priorityOrder = { high: 0, medium: 1, low: 2 };
-const priorityLabels = { high: "高", medium: "中", low: "低" };
 const eventLabels = {
   "task.create": "新建任务",
   "task.edit": "编辑任务",
@@ -88,30 +77,6 @@ const eventLabels = {
   "task.delete": "删除任务",
   "action.undo": "撤销",
   "action.redo": "重做",
-};
-
-const parseDate = (dateStr) => {
-  if (!dateStr) return null;
-  const [year, month, day] = dateStr.split("-").map(Number);
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day);
-};
-
-const getRemainingInfo = (dueDate) => {
-  const due = parseDate(dueDate);
-  if (!due) {
-    return { label: "未设置", state: "none" };
-  }
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const diffDays = Math.round((due - start) / 86400000);
-  if (diffDays < 0) {
-    return { label: `已过期 ${Math.abs(diffDays)} 天`, state: "overdue" };
-  }
-  if (diffDays === 0) {
-    return { label: "今天到期", state: "today" };
-  }
-  return { label: `剩余 ${diffDays} 天`, state: "future" };
 };
 
 const openTaskModal = (title) => {
@@ -249,17 +214,8 @@ const renderLists = () => {
   });
 
   els.listContainer.appendChild(fragment);
-  renderListSelectOptions();
-};
-
-const renderListSelectOptions = () => {
-  els.taskListSelect.innerHTML = "";
-  state.lists.forEach((list) => {
-    const option = document.createElement("option");
-    option.value = list.id;
-    option.textContent = list.name;
-    if (list.id === state.currentListId) option.selected = true;
-    els.taskListSelect.appendChild(option);
+  renderListOptions(els.taskListSelect, state.lists, {
+    selectedValue: state.currentListId,
   });
 };
 
@@ -365,46 +321,7 @@ const createTaskElement = (task, reorderEnabled) => {
   item.className = "task-item";
   item.dataset.id = task.id;
 
-  const titleRow = document.createElement("div");
-  titleRow.className = "task-title";
-  titleRow.textContent = task.title;
-
-  const noteRow = document.createElement("div");
-  noteRow.className = "task-note";
-  noteRow.textContent = task.note || "暂无备注";
-
-  const metaRow = document.createElement("div");
-  metaRow.className = "task-meta";
-  const dueText = task.dueDate ? `截止 ${task.dueDate}` : "无截止日期";
-  const duePill = document.createElement("span");
-  duePill.className = "pill";
-  duePill.textContent = dueText;
-  const priorityPill = document.createElement("span");
-  priorityPill.className = "pill";
-  priorityPill.dataset.priority = task.priority;
-  priorityPill.textContent = priorityLabels[task.priority] || task.priority;
-  const dot = document.createElement("span");
-  dot.textContent = " · ";
-  metaRow.appendChild(duePill);
-  metaRow.appendChild(dot);
-  metaRow.appendChild(priorityPill);
-
-  const checkbox = document.createElement("input");
-  checkbox.type = "checkbox";
-  checkbox.className = "task-check";
-  checkbox.checked = task.completed;
-
-  const left = document.createElement("div");
-  left.className = "task-left";
-  left.appendChild(checkbox);
-
-  const textWrap = document.createElement("div");
-  textWrap.className = "task-main";
-  textWrap.appendChild(titleRow);
-  textWrap.appendChild(noteRow);
-  textWrap.appendChild(metaRow);
-  left.appendChild(textWrap);
-
+  const { left } = buildTaskMain(task);
   const actions = document.createElement("div");
   actions.className = "task-actions";
 
@@ -428,11 +345,7 @@ const createTaskElement = (task, reorderEnabled) => {
   reorderWrap.appendChild(upBtn);
   reorderWrap.appendChild(downBtn);
 
-  const remainingInfo = getRemainingInfo(task.dueDate);
-  const remainingTag = document.createElement("div");
-  remainingTag.className = "task-remaining";
-  remainingTag.dataset.state = remainingInfo.state;
-  remainingTag.textContent = remainingInfo.label;
+  const remainingTag = createRemainingTag(task.dueDate);
 
   const editBtn = document.createElement("button");
   editBtn.type = "button";
@@ -452,11 +365,6 @@ const createTaskElement = (task, reorderEnabled) => {
   item.appendChild(reorderWrap);
   item.appendChild(left);
   item.appendChild(actions);
-
-  if (task.completed) {
-    titleRow.style.textDecoration = "line-through";
-    titleRow.style.opacity = 0.6;
-  }
 
   return item;
 };
@@ -688,10 +596,7 @@ const handleListActions = async (event) => {
 };
 
 const bindEvents = () => {
-  els.themeToggle.addEventListener("change", () => {
-    const next = els.themeToggle.checked ? "dark" : "light";
-    applyTheme(next);
-  });
+  bindThemeToggle(els.themeToggle);
 
   els.openTaskModalBtn.addEventListener("click", openNewTaskModal);
 
@@ -811,7 +716,7 @@ const bindEvents = () => {
 };
 
 const init = async () => {
-  initTheme();
+  initTheme(els.themeToggle);
   await loadLists();
   await loadTasks();
   await loadEventLog();
