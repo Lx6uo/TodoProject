@@ -28,11 +28,20 @@ const els = {
   calendarTaskTitle: document.getElementById("calendarTaskTitle"),
 };
 
+// 清空节点内容
+const clearElement = (element) => {
+  if (!element) return;
+  while (element.firstChild) {
+    element.removeChild(element.firstChild);
+  }
+};
+
+// 生成年份下拉
 const buildYearOptions = () => {
   const currentYear = state.calendarDate.getFullYear();
   const startYear = currentYear - 5;
   const endYear = currentYear + 5;
-  els.yearSelect.innerHTML = "";
+  clearElement(els.yearSelect);
 
   for (let year = startYear; year <= endYear; year += 1) {
     const option = document.createElement("option");
@@ -42,6 +51,7 @@ const buildYearOptions = () => {
   }
 };
 
+// 加载列表并应用选择
 const loadLists = async () => {
   state.lists = await getLists();
   const saved = localStorage.getItem("calendarListId");
@@ -53,6 +63,7 @@ const loadLists = async () => {
   });
 };
 
+// 加载当前筛选下的任务
 const loadTasks = async () => {
   if (state.selectedListId === "all") {
     state.tasks = await getAllTasks();
@@ -61,6 +72,7 @@ const loadTasks = async () => {
   }
 };
 
+// 渲染月历网格
 const renderCalendar = () => {
   const viewDate = state.calendarDate;
   const cells = buildCalendarCells(viewDate.getFullYear(), viewDate.getMonth());
@@ -69,13 +81,14 @@ const renderCalendar = () => {
   els.yearSelect.value = String(viewDate.getFullYear());
   els.monthSelect.value = String(viewDate.getMonth() + 1);
 
+  // 统计每个日期的任务数量
   const counts = state.tasks.reduce((acc, task) => {
     if (!task.dueDate) return acc;
     acc[task.dueDate] = (acc[task.dueDate] || 0) + 1;
     return acc;
   }, {});
 
-  els.calendarGrid.innerHTML = "";
+  clearElement(els.calendarGrid);
   const fragment = document.createDocumentFragment();
   cells.forEach((cell) => {
     const item = document.createElement("div");
@@ -101,6 +114,7 @@ const renderCalendar = () => {
   els.calendarGrid.appendChild(fragment);
 };
 
+// 创建任务条目节点
 const createTaskElement = (task, listMap, showListName) => {
   const item = document.createElement("li");
   item.className = "task-item simple";
@@ -116,8 +130,9 @@ const createTaskElement = (task, listMap, showListName) => {
   return item;
 };
 
+// 渲染选中日期的任务
 const renderCalendarTasks = () => {
-  els.calendarTaskList.innerHTML = "";
+  clearElement(els.calendarTaskList);
   const label = state.selectedDate
     ? `${state.selectedDate} 的任务`
     : "请选择日期查看任务";
@@ -148,12 +163,14 @@ const renderCalendarTasks = () => {
   els.calendarTaskList.appendChild(fragment);
 };
 
+// 刷新日历视图
 const refresh = async () => {
   await loadTasks();
   renderCalendar();
   renderCalendarTasks();
 };
 
+// 处理任务完成勾选
 const handleTaskCheckbox = async (event) => {
   if (!event.target.matches(".task-check")) return;
   const item = event.target.closest(".task-item");
@@ -165,6 +182,7 @@ const handleTaskCheckbox = async (event) => {
   await refresh();
 };
 
+// 绑定页面事件
 const bindEvents = () => {
   bindThemeToggle(els.themeToggle);
 
@@ -176,6 +194,7 @@ const bindEvents = () => {
   });
 
   const updateCalendarFromSelect = () => {
+    // 根据下拉更新年月
     const year = Number(els.yearSelect.value);
     const monthIndex = Number(els.monthSelect.value) - 1;
     if (Number.isNaN(year) || Number.isNaN(monthIndex)) return;
@@ -199,6 +218,7 @@ const bindEvents = () => {
   els.calendarTaskList.addEventListener("change", handleTaskCheckbox);
 };
 
+// 初始化入口
 const init = async () => {
   initTheme(els.themeToggle);
   buildYearOptions();

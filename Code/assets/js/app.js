@@ -1,13 +1,12 @@
 import {
   addList,
   addTask,
-  clearCompletedTasks,
   deleteList,
   deleteTask,
   exportData,
   getEventStacks,
+  getAllEvents,
   getLists,
-  getRecentEvents,
   getTasksByList,
   importData,
   updateList,
@@ -32,6 +31,12 @@ const state = {
   eventStacks: { undo: [], redo: [] },
 };
 
+// 分页控制器实例
+const pagers = {
+  task: null,
+  event: null,
+};
+
 const els = {
   themeToggle: document.getElementById("themeToggle"),
   addListBtn: document.getElementById("addListBtn"),
@@ -41,7 +46,6 @@ const els = {
   statusFilter: document.getElementById("statusFilter"),
   sortSelect: document.getElementById("sortSelect"),
   searchInput: document.getElementById("searchInput"),
-  clearCompletedBtn: document.getElementById("clearCompletedBtn"),
   undoBtn: document.getElementById("undoBtn"),
   redoBtn: document.getElementById("redoBtn"),
   exportDataBtn: document.getElementById("exportDataBtn"),
@@ -60,11 +64,21 @@ const els = {
   taskList: document.getElementById("taskList"),
   statsSummary: document.getElementById("statsSummary"),
   reorderHint: document.getElementById("reorderHint"),
+  taskPageSize: document.getElementById("taskPageSize"),
+  taskPrevPage: document.getElementById("taskPrevPage"),
+  taskNextPage: document.getElementById("taskNextPage"),
+  taskPageInfo: document.getElementById("taskPageInfo"),
   eventLogList: document.getElementById("eventLogList"),
+  eventPageSize: document.getElementById("eventPageSize"),
+  eventPrevPage: document.getElementById("eventPrevPage"),
+  eventNextPage: document.getElementById("eventNextPage"),
+  eventPageInfo: document.getElementById("eventPageInfo"),
 };
 
+// 按顺序字段排序列表
 const sortLists = (lists) => [...lists].sort((a, b) => a.order - b.order);
 
+// 按手动顺序排序任务
 const sortTasksManual = (tasks) =>
   [...tasks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
@@ -79,12 +93,14 @@ const eventLabels = {
   "action.redo": "重做",
 };
 
+// 打开任务弹窗
 const openTaskModal = (title) => {
   els.taskModalTitle.textContent = title;
   els.taskModal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
 };
 
+// 按当前设置排序任务
 const sortTasks = (tasks) => {
   if (state.sortBy === "priority") {
     return [...tasks].sort(
@@ -104,6 +120,7 @@ const sortTasks = (tasks) => {
   return sortTasksManual(tasks);
 };
 
+// 判断任务是否匹配搜索词
 const matchesSearch = (task) => {
   if (!state.searchQuery) return true;
   const term = state.searchQuery.toLowerCase();
@@ -113,6 +130,7 @@ const matchesSearch = (task) => {
   );
 };
 
+// 按状态与搜索过滤任务
 const filterTasks = (tasks) => {
   return tasks.filter((task) => {
     if (state.filterStatus === "active" && task.completed) return false;
@@ -121,13 +139,18 @@ const filterTasks = (tasks) => {
   });
 };
 
+// 切换当前列表并刷新
 const setCurrentList = async (listId) => {
   state.currentListId = listId;
   localStorage.setItem("currentListId", listId);
+  if (pagers.task) {
+    pagers.task.resetPage();
+  }
   await loadTasks();
   renderAll();
 };
 
+// 加载列表并设置当前列表
 const loadLists = async () => {
   const lists = sortLists(await getLists());
   if (!lists.length) {
@@ -144,21 +167,27 @@ const loadLists = async () => {
   localStorage.setItem("currentListId", state.currentListId);
 };
 
+// 加载当前列表的任务
 const loadTasks = async () => {
   if (!state.currentListId) return;
   state.tasks = await getTasksByList(state.currentListId);
 };
 
+// 加载事件日志并按时间倒序
 const loadEventLog = async () => {
-  state.eventLog = await getRecentEvents(20);
+  // 事件日志需要完整列表以支持分页
+  const events = await getAllEvents();
+  state.eventLog = events.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 };
 
+// 加载撤销重做栈
 const loadEventStacks = async () => {
   state.eventStacks = await getEventStacks();
 };
 
+// 渲染左侧列表
 const renderLists = () => {
-  els.listContainer.innerHTML = "";
+  clearElement(els.listContainer);
   const fragment = document.createDocumentFragment();
 
   state.lists.forEach((list) => {
@@ -219,11 +248,13 @@ const renderLists = () => {
   });
 };
 
+// 更新当前列表名称显示
 const updateCurrentListName = () => {
   const currentList = state.lists.find((list) => list.id === state.currentListId);
   els.currentListName.textContent = currentList ? currentList.name : "-";
 };
 
+// 更新排序提示文案
 const setReorderHint = (canReorder) => {
   if (canReorder) {
     els.reorderHint.textContent = "使用上下箭头可调整任务顺序。";
@@ -232,63 +263,126 @@ const setReorderHint = (canReorder) => {
   }
 };
 
-const getTaskStats = (tasks) => {
-  const total = tasks.length;
-  const completed = tasks.filter((task) => task.completed).length;
-  const active = total - completed;
-  const rate = total ? Math.round((completed / total) * 100) : 0;
-  return { total, completed, active, rate };
-};
-
-const renderStats = () => {
-  const stats = getTaskStats(state.tasks);
-  const cards = [
-    { label: "任务总数", value: stats.total },
-    { label: "进行中", value: stats.active },
-    { label: "已完成", value: `${stats.completed}（${stats.rate}%）` },
-  ];
-
-  els.statsSummary.innerHTML = "";
-  cards.forEach((card) => {
-    const item = document.createElement("div");
-    item.className = "summary-card";
-    const label = document.createElement("h3");
-    label.textContent = card.label;
-    const value = document.createElement("div");
-    value.textContent = card.value;
-    item.appendChild(label);
-    item.appendChild(value);
-    els.statsSummary.appendChild(item);
-  });
-};
-
-const formatEventTime = (timestamp) =>
-  new Date(timestamp).toLocaleString("zh-CN", { hour12: false });
-
-const buildEventTitle = (event) => {
-  if (!event) return "未知操作";
-  if (event.type === "action.undo" || event.type === "action.redo") {
-    const targetLabel = eventLabels[event.targetType] || "操作";
-    const title = event.targetTitle || "未命名任务";
-    return `${eventLabels[event.type]}：${targetLabel} · ${title}`;
+// 清空节点内容
+const clearElement = (element) => {
+  if (!element) return;
+  while (element.firstChild) {
+    element.removeChild(element.firstChild);
   }
-  const title = event.after?.title || event.before?.title || "未命名任务";
-  return `${eventLabels[event.type] || "操作"} · ${title}`;
 };
 
-const renderEventLog = () => {
-  if (!els.eventLogList) return;
-  els.eventLogList.innerHTML = "";
-  if (!state.eventLog.length) {
-    const empty = document.createElement("li");
-    empty.className = "event-item";
-    empty.textContent = "暂无操作记录。";
-    els.eventLogList.appendChild(empty);
-    return;
-  }
+// 通用分页切片
+const paginateItems = (items, page, pageSize) => {
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const currentPage = Math.min(Math.max(page, 1), totalPages);
+  const start = (currentPage - 1) * pageSize;
+  return {
+    items: items.slice(start, start + pageSize),
+    currentPage,
+    totalPages,
+  };
+};
 
+// 同步分页按钮与文案
+const updatePaginationControls = (page, totalPages, prevBtn, nextBtn, infoEl) => {
+  if (prevBtn) prevBtn.disabled = page <= 1;
+  if (nextBtn) nextBtn.disabled = page >= totalPages;
+  if (infoEl) infoEl.textContent = `第 ${page} / ${totalPages} 页`;
+};
+
+// 创建分页控制器
+const createPager = (options) => {
+  const {
+    container,
+    pageSizeKey,
+    pageSizeSelect,
+    prevBtn,
+    nextBtn,
+    infoEl,
+    emptyText,
+    emptyClass,
+    renderItems,
+  } = options;
+  let page = 1;
+  let pageSize = Number(localStorage.getItem(pageSizeKey)) || 10;
+  let items = [];
+  let context = {};
+
+  const render = () => {
+    if (!container) return;
+    clearElement(container);
+    const paged = paginateItems(items, page, pageSize);
+    page = paged.currentPage;
+    updatePaginationControls(
+      paged.currentPage,
+      paged.totalPages,
+      prevBtn,
+      nextBtn,
+      infoEl
+    );
+    if (!items.length) {
+      if (emptyText) {
+        const empty = document.createElement("li");
+        empty.className = emptyClass;
+        empty.textContent = emptyText;
+        container.appendChild(empty);
+      }
+      return;
+    }
+    renderItems(paged.items, container, context);
+  };
+
+  const setItems = (nextItems, nextContext = {}) => {
+    items = nextItems;
+    context = nextContext;
+    render();
+  };
+
+  const resetPage = () => {
+    page = 1;
+  };
+
+  const bind = () => {
+    if (pageSizeSelect) {
+      pageSizeSelect.value = String(pageSize);
+      pageSizeSelect.addEventListener("change", () => {
+        pageSize = Number(pageSizeSelect.value);
+        localStorage.setItem(pageSizeKey, pageSize);
+        page = 1;
+        render();
+      });
+    }
+    if (prevBtn) {
+      prevBtn.addEventListener("click", () => {
+        page = Math.max(1, page - 1);
+        render();
+      });
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener("click", () => {
+        page += 1;
+        render();
+      });
+    }
+  };
+
+  return { setItems, resetPage, bind, render };
+};
+
+// 渲染任务分页条目
+const renderTaskItems = (items, container, context) => {
   const fragment = document.createDocumentFragment();
-  state.eventLog.forEach((event) => {
+  items.forEach((task) => {
+    const item = createTaskElement(task, context.reorderEnabled);
+    fragment.appendChild(item);
+  });
+  container.appendChild(fragment);
+};
+
+// 渲染事件分页条目
+const renderEventItems = (items, container) => {
+  const fragment = document.createDocumentFragment();
+  items.forEach((event) => {
     const item = document.createElement("li");
     item.className = "event-item";
 
@@ -304,18 +398,102 @@ const renderEventLog = () => {
     item.appendChild(time);
     fragment.appendChild(item);
   });
-  els.eventLogList.appendChild(fragment);
+  container.appendChild(fragment);
 };
 
+// 初始化分页控制器
+const initPagers = () => {
+  pagers.task = createPager({
+    container: els.taskList,
+    pageSizeKey: "taskPageSize",
+    pageSizeSelect: els.taskPageSize,
+    prevBtn: els.taskPrevPage,
+    nextBtn: els.taskNextPage,
+    infoEl: els.taskPageInfo,
+    emptyText: "当前视图暂无任务。",
+    emptyClass: "task-item",
+    renderItems: renderTaskItems,
+  });
+  pagers.event = createPager({
+    container: els.eventLogList,
+    pageSizeKey: "eventPageSize",
+    pageSizeSelect: els.eventPageSize,
+    prevBtn: els.eventPrevPage,
+    nextBtn: els.eventNextPage,
+    infoEl: els.eventPageInfo,
+    emptyText: "暂无操作记录。",
+    emptyClass: "event-item",
+    renderItems: renderEventItems,
+  });
+  pagers.task.bind();
+  pagers.event.bind();
+};
+// 统计任务数量与完成率
+const getTaskStats = (tasks) => {
+  const total = tasks.length;
+  const completed = tasks.filter((task) => task.completed).length;
+  const active = total - completed;
+  const rate = total ? Math.round((completed / total) * 100) : 0;
+  return { total, completed, active, rate };
+};
+
+// 渲染统计卡片
+const renderStats = () => {
+  const stats = getTaskStats(state.tasks);
+  const cards = [
+    { label: "任务总数", value: stats.total },
+    { label: "进行中", value: stats.active },
+    { label: "已完成", value: `${stats.completed}（${stats.rate}%）` },
+  ];
+
+  clearElement(els.statsSummary);
+  cards.forEach((card) => {
+    const item = document.createElement("div");
+    item.className = "summary-card";
+    const label = document.createElement("h3");
+    label.textContent = card.label;
+    const value = document.createElement("div");
+    value.textContent = card.value;
+    item.appendChild(label);
+    item.appendChild(value);
+    els.statsSummary.appendChild(item);
+  });
+};
+
+// 格式化事件时间
+const formatEventTime = (timestamp) =>
+  new Date(timestamp).toLocaleString("zh-CN", { hour12: false });
+
+// 生成事件标题
+const buildEventTitle = (event) => {
+  if (!event) return "未知操作";
+  if (event.type === "action.undo" || event.type === "action.redo") {
+    const targetLabel = eventLabels[event.targetType] || "操作";
+    const title = event.targetTitle || "未命名任务";
+    return `${eventLabels[event.type]}：${targetLabel} · ${title}`;
+  }
+  const title = event.after?.title || event.before?.title || "未命名任务";
+  return `${eventLabels[event.type] || "操作"} · ${title}`;
+};
+
+// 渲染事件日志列表
+const renderEventLog = () => {
+  if (!pagers.event) return;
+  pagers.event.setItems(state.eventLog);
+};
+
+// 更新撤销/重做按钮状态
 const updateUndoRedoButtons = () => {
   if (!els.undoBtn || !els.redoBtn) return;
   els.undoBtn.disabled = !state.eventStacks.undo.length;
   els.redoBtn.disabled = !state.eventStacks.redo.length;
 };
 
+// 判断是否允许手动排序
 const canReorderTasks = () =>
   state.filterStatus === "all" && state.sortBy === "manual" && !state.searchQuery;
 
+// 生成任务条目 DOM
 const createTaskElement = (task, reorderEnabled) => {
   const item = document.createElement("li");
   item.className = "task-item";
@@ -369,61 +547,76 @@ const createTaskElement = (task, reorderEnabled) => {
   return item;
 };
 
+// 渲染任务列表
 const renderTasks = () => {
-  els.taskList.innerHTML = "";
   const reorderEnabled = canReorderTasks();
   const visibleTasks = sortTasks(filterTasks(state.tasks));
 
   setReorderHint(reorderEnabled);
+  if (pagers.task) {
+    pagers.task.setItems(visibleTasks, { reorderEnabled });
+  }
+};
 
-  if (!visibleTasks.length) {
-    const empty = document.createElement("li");
-    empty.className = "task-item";
-    empty.textContent = "当前视图暂无任务。";
-    els.taskList.appendChild(empty);
+// 从表单读取任务数据
+const getTaskFormPayload = () => {
+  const title = els.taskTitle.value.trim();
+  if (!title) return null;
+  return {
+    title,
+    note: els.taskNote.value.trim(),
+    priority: els.taskPriority.value,
+    dueDate: els.taskDueDate.value || null,
+    listId: els.taskListSelect.value || state.currentListId,
+  };
+};
+
+// 填充任务表单（null 为新建）
+const fillTaskForm = (task) => {
+  if (!task) {
+    els.taskForm.reset();
+    els.taskPriority.value = "medium";
+    els.taskListSelect.value = state.currentListId;
+    state.editingTaskId = null;
+    els.taskSubmitBtn.textContent = "添加任务";
     return;
   }
-
-  const fragment = document.createDocumentFragment();
-  visibleTasks.forEach((task) => {
-    const item = createTaskElement(task, reorderEnabled);
-    fragment.appendChild(item);
-  });
-  els.taskList.appendChild(fragment);
+  state.editingTaskId = task.id;
+  els.taskTitle.value = task.title;
+  els.taskNote.value = task.note || "";
+  els.taskPriority.value = task.priority || "medium";
+  els.taskDueDate.value = task.dueDate || "";
+  els.taskListSelect.value = task.listId || state.currentListId;
+  els.taskSubmitBtn.textContent = "更新任务";
 };
 
+// 重置表单状态
 const clearForm = () => {
-  els.taskForm.reset();
-  els.taskPriority.value = "medium";
-  els.taskListSelect.value = state.currentListId;
-  state.editingTaskId = null;
-  els.taskSubmitBtn.textContent = "添加任务";
+  fillTaskForm(null);
 };
 
+// 关闭弹窗并清理状态
 const closeTaskModal = () => {
   els.taskModal.classList.add("hidden");
   document.body.style.overflow = "";
   clearForm();
 };
 
+// 打开新建任务弹窗
 const openNewTaskModal = () => {
   clearForm();
   openTaskModal("新建任务");
   els.taskTitle.focus();
 };
 
+// 进入编辑任务
 const startEditTask = (task) => {
-  state.editingTaskId = task.id;
-  els.taskTitle.value = task.title;
-  els.taskNote.value = task.note || "";
-  els.taskPriority.value = task.priority || "medium";
-  els.taskDueDate.value = task.dueDate || "";
-  els.taskListSelect.value = task.listId;
-  els.taskSubmitBtn.textContent = "更新任务";
+  fillTaskForm(task);
   els.taskTitle.focus();
   openTaskModal("编辑任务");
 };
 
+// 重新加载数据并渲染
 const refreshAll = async () => {
   await loadTasks();
   await loadEventLog();
@@ -431,6 +624,7 @@ const refreshAll = async () => {
   renderAll();
 };
 
+// 全量渲染页面
 const renderAll = () => {
   updateCurrentListName();
   renderLists();
@@ -440,13 +634,14 @@ const renderAll = () => {
   updateUndoRedoButtons();
 };
 
+// 处理表单提交（新增/更新）
 const handleFormSubmit = async (event) => {
   event.preventDefault();
-  const title = els.taskTitle.value.trim();
-  if (!title) return;
+  const payload = getTaskFormPayload();
+  if (!payload) return;
 
-  const listId = els.taskListSelect.value || state.currentListId;
-  const tasksForList = await getTasksByList(listId);
+  // 计算目标列表的新顺序
+  const tasksForList = await getTasksByList(payload.listId);
   const nextOrder = tasksForList.length
     ? Math.max(...tasksForList.map((task) => task.order ?? 0)) + 1
     : 0;
@@ -454,24 +649,17 @@ const handleFormSubmit = async (event) => {
   if (state.editingTaskId) {
     const existing = state.tasks.find((task) => task.id === state.editingTaskId);
     if (!existing) return;
-    const order = existing.listId === listId ? existing.order : nextOrder;
+    // 同列表保留原顺序，跨列表则使用末尾顺序
+    const order = existing.listId === payload.listId ? existing.order : nextOrder;
     const updated = {
       ...existing,
-      title,
-      note: els.taskNote.value.trim(),
-      priority: els.taskPriority.value,
-      dueDate: els.taskDueDate.value || null,
-      listId,
+      ...payload,
       order,
     };
     await updateTask(updated);
   } else {
     await addTask({
-      title,
-      note: els.taskNote.value.trim(),
-      priority: els.taskPriority.value,
-      dueDate: els.taskDueDate.value || null,
-      listId,
+      ...payload,
       order: nextOrder,
     });
   }
@@ -480,6 +668,7 @@ const handleFormSubmit = async (event) => {
   closeTaskModal();
 };
 
+// 处理任务列表按钮点击
 const handleTaskListClick = async (event) => {
   const button = event.target.closest("button");
   const item = event.target.closest(".task-item");
@@ -508,6 +697,7 @@ const handleTaskListClick = async (event) => {
   }
 };
 
+// 调整列表顺序
 const moveList = async (listId, direction) => {
   const ordered = sortLists(state.lists);
   const index = ordered.findIndex((list) => list.id === listId);
@@ -516,6 +706,7 @@ const moveList = async (listId, direction) => {
 
   const current = ordered[index];
   const target = ordered[targetIndex];
+  // 交换顺序值
   const temp = current.order;
   current.order = target.order;
   target.order = temp;
@@ -527,6 +718,7 @@ const moveList = async (listId, direction) => {
   updateCurrentListName();
 };
 
+// 调整任务顺序
 const moveTask = async (taskId, direction) => {
   const ordered = sortTasksManual(state.tasks);
   const index = ordered.findIndex((task) => task.id === taskId);
@@ -535,6 +727,7 @@ const moveTask = async (taskId, direction) => {
 
   const current = ordered[index];
   const target = ordered[targetIndex];
+  // 交换顺序值
   const temp = current.order;
   current.order = target.order;
   target.order = temp;
@@ -544,6 +737,7 @@ const moveTask = async (taskId, direction) => {
   await refreshAll();
 };
 
+// 切换任务完成状态
 const handleTaskCheckbox = async (event) => {
   if (!event.target.matches(".task-check")) return;
   const item = event.target.closest(".task-item");
@@ -555,6 +749,7 @@ const handleTaskCheckbox = async (event) => {
   await refreshAll();
 };
 
+// 处理列表区按钮事件
 const handleListActions = async (event) => {
   const listItem = event.target.closest(".list-item");
   if (!listItem) return;
@@ -595,6 +790,7 @@ const handleListActions = async (event) => {
   }
 };
 
+// 绑定页面事件
 const bindEvents = () => {
   bindThemeToggle(els.themeToggle);
 
@@ -616,24 +812,27 @@ const bindEvents = () => {
   els.statusFilter.addEventListener("change", () => {
     state.filterStatus = els.statusFilter.value;
     localStorage.setItem("filterStatus", state.filterStatus);
+    if (pagers.task) {
+      pagers.task.resetPage();
+    }
     renderTasks();
   });
 
   els.sortSelect.addEventListener("change", () => {
     state.sortBy = els.sortSelect.value;
     localStorage.setItem("sortBy", state.sortBy);
+    if (pagers.task) {
+      pagers.task.resetPage();
+    }
     renderTasks();
   });
 
   els.searchInput.addEventListener("input", () => {
     state.searchQuery = els.searchInput.value.trim();
+    if (pagers.task) {
+      pagers.task.resetPage();
+    }
     renderTasks();
-  });
-
-  els.clearCompletedBtn.addEventListener("click", async () => {
-    if (!confirm("确定清理当前列表内已完成的任务吗？")) return;
-    await clearCompletedTasks(state.currentListId);
-    await refreshAll();
   });
 
   if (els.undoBtn) {
@@ -715,8 +914,10 @@ const bindEvents = () => {
   els.taskList.addEventListener("change", handleTaskCheckbox);
 };
 
+// 初始化入口
 const init = async () => {
   initTheme(els.themeToggle);
+  initPagers();
   await loadLists();
   await loadTasks();
   await loadEventLog();

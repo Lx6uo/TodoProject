@@ -1,5 +1,6 @@
 const priorityLabels = { high: "高", medium: "中", low: "低" };
 
+// 解析日期字符串
 const parseDate = (dateStr) => {
   if (!dateStr) return null;
   const [year, month, day] = dateStr.split("-").map(Number);
@@ -7,6 +8,7 @@ const parseDate = (dateStr) => {
   return new Date(year, month - 1, day);
 };
 
+// 以当天 0 点为基准计算剩余天数
 const getRemainingInfo = (dueDate) => {
   const due = parseDate(dueDate);
   if (!due) {
@@ -24,6 +26,7 @@ const getRemainingInfo = (dueDate) => {
   return { label: `剩余 ${diffDays} 天`, state: "future" };
 };
 
+// 创建标签元素
 const createPill = (text) => {
   const pill = document.createElement("span");
   pill.className = "pill";
@@ -31,6 +34,7 @@ const createPill = (text) => {
   return pill;
 };
 
+// 创建剩余时间标签
 export const createRemainingTag = (dueDate) => {
   const remainingInfo = getRemainingInfo(dueDate);
   const remainingTag = document.createElement("span");
@@ -40,8 +44,10 @@ export const createRemainingTag = (dueDate) => {
   return remainingTag;
 };
 
+// 构建任务元信息区域
 export const buildTaskMeta = (task, options = {}) => {
   const { showListName = false, listName = "", includeRemaining = false } = options;
+  // 组合标签：列表名 / 截止 / 优先级 / 剩余
   const metaRow = document.createElement("div");
   metaRow.className = "task-meta";
 
@@ -68,6 +74,7 @@ export const buildTaskMeta = (task, options = {}) => {
   return metaRow;
 };
 
+// 构建任务主体区域
 export const buildTaskMain = (task, options = {}) => {
   const { showListName = false, listName = "", includeRemaining = false } = options;
   const checkbox = document.createElement("input");

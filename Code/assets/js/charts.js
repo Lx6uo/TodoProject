@@ -25,6 +25,7 @@ const state = {
   events: [],
 };
 
+// 读取主题配色变量
 const readThemeColors = () => {
   const styles = getComputedStyle(document.documentElement);
   return {
@@ -37,18 +38,69 @@ const readThemeColors = () => {
   };
 };
 
+// 统一网格配置
+const buildGrid = () => ({ left: 32, right: 12, top: 20, bottom: 32 });
+
+// 统一类目轴配置
+const buildCategoryAxis = (labels, colors) => ({
+  type: "category",
+  data: labels,
+  axisLabel: { color: colors.inkSoft },
+  axisLine: { lineStyle: { color: colors.outline } },
+});
+
+// 统一数值轴配置
+const buildValueAxis = (colors) => ({
+  type: "value",
+  axisLabel: { color: colors.inkSoft },
+  splitLine: { lineStyle: { color: colors.outline } },
+});
+
+// 折线系列模板
+const buildLineSeries = (name, data, color) => ({
+  name,
+  type: "line",
+  smooth: true,
+  data,
+  color,
+});
+
+// 柱状系列模板
+const buildBarSeries = (data, color) => ({
+  type: "bar",
+  data,
+  itemStyle: { color },
+});
+
+// 饼图系列模板
+const buildPieSeries = (data, colors) => ({
+  type: "pie",
+  radius: ["45%", "70%"],
+  label: { color: colors.ink },
+  data,
+});
+
+// 轴类图表提示配置
+const buildAxisTooltip = () => ({ trigger: "axis" });
+
+// 饼图提示配置
+const buildItemTooltip = () => ({ trigger: "item" });
+
+// 按列表筛选任务
 const getScopedTasks = () => {
   const selected = els.listSelect.value;
   if (selected === "all") return state.tasks;
   return state.tasks.filter((task) => task.listId === selected);
 };
 
+// 按列表筛选事件
 const getScopedEvents = () => {
   const selected = els.listSelect.value;
   if (selected === "all") return state.events;
   return state.events.filter((event) => event.listId === selected);
 };
 
+// 获取时间范围
 const getRange = () => {
   const now = new Date();
   if (els.rangeSelect.value !== "custom") {
@@ -68,6 +120,7 @@ const getRange = () => {
   return { start, end };
 };
 
+// 按时间范围过滤事件
 const filterEventsByRange = (events, range) => {
   if (!range.start || !range.end) return [];
   const startTime = range.start.getTime();
@@ -77,16 +130,20 @@ const filterEventsByRange = (events, range) => {
   );
 };
 
+// 计算范围天数
 const getRangeDays = (range) => {
   if (!range.start || !range.end) return 0;
   const diff = range.end.getTime() - range.start.getTime();
   return Math.max(1, Math.floor(diff / 86400000) + 1);
 };
 
+// 格式化百分比
 const formatRate = (value) => `${Math.round(value * 100)}%`;
 
+// 格式化日均值
 const formatAverage = (value) => `${value.toFixed(1)} 条/天`;
 
+// 构建完成耗时区间统计
 const buildDurationBuckets = (events) => {
   const buckets = [
     { label: "当天完成", min: 0, max: 0 },
@@ -111,6 +168,7 @@ const buildDurationBuckets = (events) => {
   return { labels: buckets.map((bucket) => bucket.label), data: counts };
 };
 
+// 构建新增/完成趋势
 const buildTrendSeries = (tasks, range) => {
   if (!range.start || !range.end) {
     return { labels: [], created: [], completed: [] };
@@ -148,6 +206,7 @@ const buildTrendSeries = (tasks, range) => {
   };
 };
 
+// 初始化图表实例
 const initCharts = () => ({
   completion: echarts.init(els.completionChart),
   trend: echarts.init(els.trendChart),
@@ -155,6 +214,7 @@ const initCharts = () => ({
   duration: echarts.init(els.durationChart),
 });
 
+// 更新所有图表与指标
 const updateCharts = (charts) => {
   const colors = readThemeColors();
   const tasks = getScopedTasks();
@@ -165,6 +225,7 @@ const updateCharts = (charts) => {
   const completedEvents = rangeEvents.filter((event) => event.type === "task.complete");
   const reopenEvents = rangeEvents.filter((event) => event.type === "task.reopen");
   const rangeDays = getRangeDays(range);
+  // 返工率按全部任务为分母
   const redoTaskCount = new Set(
     rangeEventsAll
       .filter((event) => event.type === "task.reopen" && event.taskId)
@@ -184,26 +245,26 @@ const updateCharts = (charts) => {
   if (els.avgReworkValue) {
     els.avgReworkValue.textContent = rangeDays ? formatAverage(avgRework) : "-";
   }
+  // 完成/进行中占比
   const completedCount = tasks.filter((task) => task.completed).length;
   const activeCount = tasks.length - completedCount;
 
   charts.completion.setOption({
     backgroundColor: "transparent",
-    tooltip: { trigger: "item" },
+    tooltip: buildItemTooltip(),
     color: [colors.accent, colors.accentWarm],
     series: [
-      {
-        type: "pie",
-        radius: ["45%", "70%"],
-        label: { color: colors.ink },
-        data: [
+      buildPieSeries(
+        [
           { value: completedCount, name: "已完成" },
           { value: activeCount, name: "进行中" },
         ],
-      },
+        colors
+      ),
     ],
   });
 
+  // 优先级分布
   const priorityStats = tasks.reduce(
     (acc, task) => {
       acc[task.priority] = (acc[task.priority] || 0) + 1;
@@ -213,89 +274,46 @@ const updateCharts = (charts) => {
   );
 
   charts.priority.setOption({
-    grid: { left: 32, right: 12, top: 20, bottom: 32 },
-    xAxis: {
-      type: "category",
-      data: ["高", "中", "低"],
-      axisLabel: { color: colors.inkSoft },
-      axisLine: { lineStyle: { color: colors.outline } },
-    },
-    yAxis: {
-      type: "value",
-      axisLabel: { color: colors.inkSoft },
-      splitLine: { lineStyle: { color: colors.outline } },
-    },
-    tooltip: { trigger: "axis" },
+    grid: buildGrid(),
+    xAxis: buildCategoryAxis(["高", "中", "低"], colors),
+    yAxis: buildValueAxis(colors),
+    tooltip: buildAxisTooltip(),
     series: [
-      {
-        type: "bar",
-        data: [priorityStats.high, priorityStats.medium, priorityStats.low],
-        itemStyle: { color: colors.accent },
-      },
+      buildBarSeries(
+        [priorityStats.high, priorityStats.medium, priorityStats.low],
+        colors.accent
+      ),
     ],
   });
 
+  // 趋势折线
   const trend = buildTrendSeries(tasks, range);
   const labelShort = trend.labels.map((label) => label.slice(5));
   const series = [
-    {
-      name: "新增",
-      type: "line",
-      smooth: true,
-      data: trend.created,
-      color: colors.accent,
-    },
-    {
-      name: "完成",
-      type: "line",
-      smooth: true,
-      data: trend.completed,
-      color: colors.accentWarm,
-    },
+    buildLineSeries("新增", trend.created, colors.accent),
+    buildLineSeries("完成", trend.completed, colors.accentWarm),
   ];
 
   charts.trend.setOption({
-    grid: { left: 32, right: 12, top: 20, bottom: 32 },
-    xAxis: {
-      type: "category",
-      data: labelShort,
-      axisLabel: { color: colors.inkSoft },
-      axisLine: { lineStyle: { color: colors.outline } },
-    },
-    yAxis: {
-      type: "value",
-      axisLabel: { color: colors.inkSoft },
-      splitLine: { lineStyle: { color: colors.outline } },
-    },
-    tooltip: { trigger: "axis" },
+    grid: buildGrid(),
+    xAxis: buildCategoryAxis(labelShort, colors),
+    yAxis: buildValueAxis(colors),
+    tooltip: buildAxisTooltip(),
     series,
   });
 
+  // 完成耗时分布
   const durationBuckets = buildDurationBuckets(completedEvents);
   charts.duration.setOption({
-    grid: { left: 32, right: 12, top: 20, bottom: 32 },
-    xAxis: {
-      type: "category",
-      data: durationBuckets.labels,
-      axisLabel: { color: colors.inkSoft },
-      axisLine: { lineStyle: { color: colors.outline } },
-    },
-    yAxis: {
-      type: "value",
-      axisLabel: { color: colors.inkSoft },
-      splitLine: { lineStyle: { color: colors.outline } },
-    },
-    tooltip: { trigger: "axis" },
-    series: [
-      {
-        type: "bar",
-        data: durationBuckets.data,
-        itemStyle: { color: colors.accent },
-      },
-    ],
+    grid: buildGrid(),
+    xAxis: buildCategoryAxis(durationBuckets.labels, colors),
+    yAxis: buildValueAxis(colors),
+    tooltip: buildAxisTooltip(),
+    series: [buildBarSeries(durationBuckets.data, colors.accent)],
   });
 };
 
+// 绑定交互事件
 const bindEvents = (charts) => {
   bindThemeToggle(els.themeToggle, () => updateCharts(charts));
 
@@ -318,6 +336,7 @@ const bindEvents = (charts) => {
   });
 };
 
+// 初始化入口
 const init = async () => {
   initTheme(els.themeToggle);
   state.lists = await getLists();

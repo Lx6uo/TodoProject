@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>待办清单工作台</title>
+    <title>TODO APP</title>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%93%85%3C/text%3E%3C/svg%3E"
@@ -81,15 +81,14 @@
               </div>
               <button id="undoBtn" class="ghost-btn" type="button">↩ 撤销</button>
               <button id="redoBtn" class="ghost-btn" type="button">↪ 重做</button>
-              <button id="clearCompletedBtn" class="ghost-btn" type="button">
-                🧹 清理已完成
-              </button>
-              <button id="exportDataBtn" class="ghost-btn" type="button">
-                导出数据
-              </button>
-              <button id="importDataBtn" class="ghost-btn" type="button">
-                导入数据
-              </button>
+              <div class="inline-actions">
+                <button id="exportDataBtn" class="ghost-btn" type="button">
+                  导出数据
+                </button>
+                <button id="importDataBtn" class="ghost-btn" type="button">
+                  导入数据
+                </button>
+              </div>
               <input
                 id="importFileInput"
                 type="file"
@@ -106,6 +105,18 @@
             </div>
 
             <ul id="taskList" class="task-list" aria-live="polite"></ul>
+            <div class="pager-compact" aria-label="任务分页">
+              <label for="taskPageSize">每页</label>
+              <select id="taskPageSize">
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+              <button id="taskPrevPage" type="button">上一页</button>
+              <span id="taskPageInfo" class="pager-info">第 1 / 1 页</span>
+              <button id="taskNextPage" type="button">下一页</button>
+            </div>
           </section>
 
           <section class="panel">
@@ -114,6 +125,18 @@
               <span class="hint">记录新建、编辑、完成、撤销等操作</span>
             </div>
             <ul id="eventLogList" class="event-log" aria-live="polite"></ul>
+            <div class="pager-compact" aria-label="操作记录分页">
+              <label for="eventPageSize">每页</label>
+              <select id="eventPageSize">
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+              <button id="eventPrevPage" type="button">上一页</button>
+              <span id="eventPageInfo" class="pager-info">第 1 / 1 页</span>
+              <button id="eventNextPage" type="button">下一页</button>
+            </div>
           </section>
         </main>
       </div>

@@ -2,8 +2,10 @@ const DB_NAME = "todo-studio";
 const DB_VERSION = 2;
 let dbPromise;
 
+// 获取当前时间戳
 const timeNow = () => Date.now();
 
+// 生成唯一 ID
 const createId = () => {
   if (crypto?.randomUUID) {
     return crypto.randomUUID();
@@ -11,12 +13,14 @@ const createId = () => {
   return `id-${timeNow()}-${Math.random().toString(16).slice(2)}`;
 };
 
+// 将 IndexedDB 请求封装成 Promise
 const requestToPromise = (request) =>
   new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 
+// 等待事务完成
 const transactionDone = (tx) =>
   new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
@@ -26,6 +30,7 @@ const transactionDone = (tx) =>
 
 const DEFAULT_EVENT_STACKS = { undo: [], redo: [] };
 
+// 构建任务事件对象
 const buildTaskEvent = (type, before, after, createdAt = timeNow()) => ({
   id: createId(),
   type,
@@ -36,6 +41,7 @@ const buildTaskEvent = (type, before, after, createdAt = timeNow()) => ({
   createdAt,
 });
 
+// 构建撤销/重做事件对象
 const buildActionEvent = (type, targetEvent) => {
   const title = targetEvent?.after?.title || targetEvent?.before?.title || "未命名任务";
   return {
@@ -54,6 +60,7 @@ const buildActionEvent = (type, targetEvent) => {
   };
 };
 
+// 读取撤销/重做栈
 const readEventStacks = async (metaStore) => {
   const entry = await requestToPromise(metaStore.get("eventStacks"));
   const value = entry?.value || DEFAULT_EVENT_STACKS;
@@ -63,9 +70,11 @@ const readEventStacks = async (metaStore) => {
   };
 };
 
+// 写入撤销/重做栈
 const writeEventStacks = (metaStore, stacks) =>
   metaStore.put({ key: "eventStacks", value: stacks });
 
+// 追加事件并更新栈
 const pushEventToStacks = (eventStore, metaStore, event, stacks) => {
   eventStore.put(event);
   stacks.undo.push(event.id);
@@ -73,6 +82,7 @@ const pushEventToStacks = (eventStore, metaStore, event, stacks) => {
   writeEventStacks(metaStore, stacks);
 };
 
+// 打开数据库并初始化结构
 export const openDB = () => {
   if (dbPromise) {
     return dbPromise;
@@ -82,6 +92,7 @@ export const openDB = () => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onupgradeneeded = () => {
+      // 首次或升级时创建对象仓库与索引
       const db = request.result;
       if (!db.objectStoreNames.contains("lists")) {
         const listStore = db.createObjectStore("lists", { keyPath: "id" });
@@ -112,12 +123,14 @@ export const openDB = () => {
   return dbPromise;
 };
 
+// 获取所有列表
 export const getLists = async () => {
   const db = await openDB();
   const store = db.transaction("lists").objectStore("lists");
   return requestToPromise(store.getAll());
 };
 
+// 新增列表
 export const addList = async (name) => {
   const db = await openDB();
   const now = timeNow();
@@ -134,6 +147,7 @@ export const addList = async (name) => {
   return list;
 };
 
+// 更新列表
 export const updateList = async (list) => {
   const db = await openDB();
   const updated = { ...list, updatedAt: timeNow() };
@@ -143,6 +157,7 @@ export const updateList = async (list) => {
   return updated;
 };
 
+// 删除列表及其任务
 export const deleteList = async (listId) => {
   const db = await openDB();
   const tx = db.transaction(["lists", "tasks"], "readwrite");
@@ -154,6 +169,7 @@ export const deleteList = async (listId) => {
   await transactionDone(tx);
 };
 
+// 获取某列表任务
 export const getTasksByList = async (listId) => {
   const db = await openDB();
   const store = db.transaction("tasks").objectStore("tasks");
@@ -163,35 +179,19 @@ export const getTasksByList = async (listId) => {
   return requestToPromise(store.index("listId").getAll(listId));
 };
 
+// 获取全部任务
 export const getAllTasks = async () => {
   const db = await openDB();
   return requestToPromise(db.transaction("tasks").objectStore("tasks").getAll());
 };
 
+// 获取全部事件
 export const getAllEvents = async () => {
   const db = await openDB();
   return requestToPromise(db.transaction("events").objectStore("events").getAll());
 };
 
-export const getRecentEvents = async (limit = 20) => {
-  const db = await openDB();
-  const store = db.transaction("events").objectStore("events").index("createdAt");
-  return new Promise((resolve, reject) => {
-    const events = [];
-    const request = store.openCursor(null, "prev");
-    request.onsuccess = () => {
-      const cursor = request.result;
-      if (cursor && events.length < limit) {
-        events.push(cursor.value);
-        cursor.continue();
-      } else {
-        resolve(events);
-      }
-    };
-    request.onerror = () => reject(request.error);
-  });
-};
-
+// 读取撤销/重做栈
 export const getEventStacks = async () => {
   const db = await openDB();
   const store = db.transaction("meta").objectStore("meta");
@@ -205,6 +205,7 @@ export const getEventStacks = async () => {
   };
 };
 
+// 获取所有 meta 数据
 const getAllMeta = async () => {
   const db = await openDB();
   const store = db.transaction("meta").objectStore("meta");
@@ -215,6 +216,7 @@ const getAllMeta = async () => {
   }, {});
 };
 
+// 导出全量数据
 export const exportData = async () => {
   const [lists, tasks, events, meta] = await Promise.all([
     getLists(),
@@ -232,6 +234,7 @@ export const exportData = async () => {
   };
 };
 
+// 导入数据（合并或覆盖）
 export const importData = async (payload, mode = "merge") => {
   if (!payload || !Array.isArray(payload.lists) || !Array.isArray(payload.tasks)) {
     throw new Error("导入数据格式不正确");
@@ -245,6 +248,7 @@ export const importData = async (payload, mode = "merge") => {
   const eventStore = tx.objectStore("events");
   const metaStore = tx.objectStore("meta");
 
+  // 覆盖模式清空旧数据
   if (mode === "replace") {
     listStore.clear();
     taskStore.clear();
@@ -260,11 +264,13 @@ export const importData = async (payload, mode = "merge") => {
       metaStore.put({ key, value });
     }
   });
+  // 导入后重置撤销重做栈
   metaStore.put({ key: "eventStacks", value: { undo: [], redo: [] } });
 
   await transactionDone(tx);
 };
 
+// 新增任务并记录事件
 export const addTask = async (task) => {
   const db = await openDB();
   const now = timeNow();
@@ -288,6 +294,7 @@ export const addTask = async (task) => {
   return payload;
 };
 
+// 更新任务并记录事件
 export const updateTask = async (task, eventType = "task.edit") => {
   const db = await openDB();
   const tx = db.transaction(["tasks", "events", "meta"], "readwrite");
@@ -308,6 +315,7 @@ export const updateTask = async (task, eventType = "task.edit") => {
   return updated;
 };
 
+// 切换任务完成状态并记录事件
 export const toggleTaskCompletion = async (taskId, completed) => {
   const db = await openDB();
   const tx = db.transaction(["tasks", "events", "meta"], "readwrite");
@@ -339,6 +347,7 @@ export const toggleTaskCompletion = async (taskId, completed) => {
   return updated;
 };
 
+// 删除任务并记录事件
 export const deleteTask = async (taskId) => {
   const db = await openDB();
   const tx = db.transaction(["tasks", "events", "meta"], "readwrite");
@@ -357,15 +366,7 @@ export const deleteTask = async (taskId) => {
   await transactionDone(tx);
 };
 
-export const clearCompletedTasks = async (listId) => {
-  const tasks = await getTasksByList(listId);
-  const completedTasks = tasks.filter((task) => task.completed);
-  for (const task of completedTasks) {
-    await deleteTask(task.id);
-  }
-  return completedTasks.length;
-};
-
+// 根据事件应用撤销/重做
 const applyEventChange = (taskStore, event, direction) => {
   const isUndo = direction === "undo";
   const before = event.before;
@@ -399,6 +400,7 @@ const applyEventChange = (taskStore, event, direction) => {
   }
 };
 
+// 撤销最近事件
 export const undoLastEvent = async () => {
   const db = await openDB();
   const tx = db.transaction(["tasks", "events", "meta"], "readwrite");
@@ -416,6 +418,7 @@ export const undoLastEvent = async () => {
     await transactionDone(tx);
     return null;
   }
+  // 按事件回滚数据
   applyEventChange(taskStore, targetEvent, "undo");
   stacks.redo.push(targetId);
   writeEventStacks(metaStore, stacks);
@@ -424,6 +427,7 @@ export const undoLastEvent = async () => {
   return targetEvent;
 };
 
+// 重做最近事件
 export const redoLastEvent = async () => {
   const db = await openDB();
   const tx = db.transaction(["tasks", "events", "meta"], "readwrite");
@@ -441,6 +445,7 @@ export const redoLastEvent = async () => {
     await transactionDone(tx);
     return null;
   }
+  // 按事件前进数据
   applyEventChange(taskStore, targetEvent, "redo");
   stacks.undo.push(targetId);
   writeEventStacks(metaStore, stacks);

@@ -334,6 +334,16 @@ a {
   align-items: center;
 }
 
+.inline-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.inline-actions .ghost-btn {
+  white-space: nowrap;
+}
+
 .current-list {
   display: flex;
   flex-direction: column;
@@ -415,6 +425,40 @@ a {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pager-compact {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.pager-compact select,
+.pager-compact button {
+  font-size: 12px;
+}
+
+.pager-compact button {
+  border: 1px solid var(--outline);
+  background: transparent;
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.pager-compact button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pager-info {
+  font-size: 12px;
 }
 
 .hidden {
