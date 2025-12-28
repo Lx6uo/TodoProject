@@ -19,6 +19,7 @@
 - 列表排序：支持上下箭头调整列表顺序
 - 过滤与搜索：全部/进行中/已完成 + 关键字搜索
 - 排序：按优先级、按日期
+- 分页：任务列表与事件日志支持分页，页大小可选并记忆偏好
 - 日历视图：支持年份与月份选择，点击日期查看当日截止任务
 - 日历视图为独立页面展示
 - 统计概览：总数、完成数、完成率（当前列表）
@@ -84,7 +85,7 @@
 - IndexedDB：`lists` 与 `tasks` 两个对象仓库
 - 索引建议：`listId`、`dueDate`、`completed`
 - 新增 `events`（事件日志）与 `meta`（撤销/重做栈）仓库
-- localStorage：主题、当前列表、上次筛选状态
+- localStorage：主题、当前列表、筛选/排序偏好、分页页大小
 
 ## 交互规则
 - 仅在“状态：全部 + 排序：手动”下允许调整顺序，避免筛选导致顺序混乱
@@ -95,24 +96,29 @@
 ## ECharts 交互增强
 - 列表范围切换：全部 / 指定列表
 - 时间范围切换：近 7 天 / 近 30 天 / 自定义
-- 趋势指标切换：新增 / 完成 / 同时显示
+- 趋势折线：固定同时显示新增 + 完成（不提供指标筛选）
 - 完成耗时分布：基于完成事件的耗时统计
-- 返工率与日均完成/返工：基于事件日志计算
+- 返工率与日均完成/返工：基于事件日志计算（返工率分母=全部任务，分子=区间内重新开启任务数，按任务去重）
 
-## 目录结构建议
+## 目录结构
 ```
-/Code
-  /assets
-    /css/style.css
-    /js/app.js
-    /js/storage.js
-    /js/calendar.js
-    /js/charts.js
-    /js/calendar-page.js
-  /node_modules/echarts/dist/echarts.min.js
-  index.html
-  analytics.html
-  calendar.html
+/Code  # 站点根目录（静态服务器指向这里）
+  /assets  # 静态资源
+    /css/style.css  # 全站样式
+    /js/app.js  # 首页：任务/列表/筛选/分页/日志/导入导出
+    /js/list-ui.js  # 下拉选项渲染（复用）
+    /js/task-ui.js  # 任务 DOM 构建工具（复用）
+    /js/theme.js  # 主题初始化与切换（复用）
+    /js/storage.js  # IndexedDB 数据层 + 事件日志 + 撤销/重做
+    /js/calendar.js  # 日期工具与日历通用逻辑
+    /js/charts.js  # 分析页图表与指标计算
+    /js/calendar-page.js  # 日历页渲染与交互
+  /node_modules/echarts/dist/echarts.min.js  # 本地 ECharts（直接引用）
+  index.html  # 任务清单页
+  analytics.html  # 数据分析页
+  calendar.html  # 日历页
+  package.json  # 依赖清单（主要用于 ECharts）
+  pnpm-lock.yaml  # pnpm 锁文件
 ```
 
 ## 开发步骤建议
